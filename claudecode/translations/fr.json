@@ -1,0 +1,53 @@
+{
+  "title": "Utilisation Claude Code",
+  "used": "utilisé",
+  "resets_in": "Réinitialise dans",
+  "resetting": "Réinitialisation…",
+  "five_hour": "Fenêtre 5h",
+  "seven_day": "Utilisation 7 jours",
+  "token_consumption": "Consommation de tokens",
+  "today": "Aujourd'hui",
+  "week": "Semaine",
+  "month": "Mois",
+  "daily_activity": "Activité quotidienne",
+  "models_this_week": "Modèles cette semaine",
+  "since": "Depuis",
+  "sessions": "sessions",
+  "msgs": "msgs",
+  "all": "Tout",
+  "profile": "Profil",
+  "days": "Lu,Ma,Me,Je,Ve,Sa,Di",
+  "currency": {
+    "auto_default": "eur"
+  },
+  "settings": {
+    "refresh_interval": {
+      "label": "Intervalle de rafraîchissement",
+      "description": "Fréquence de mise à jour des données (minutes)."
+    },
+    "currency": {
+      "label": "Devise",
+      "description": "Devise pour les coûts affichés. Auto suit la langue de l'interface.",
+      "options": {
+        "auto": "Auto",
+        "usd": "USD ($)",
+        "eur": "EUR (€)"
+      }
+    },
+    "pill_metric": {
+      "label": "Métrique de la barre",
+      "description": "Fenêtre de limite affichée dans la pilule de la barre.",
+      "options": {
+        "five_hour": "Fenêtre 5 heures",
+        "seven_day": "Fenêtre 7 jours"
+      }
+    },
+    "show_glyph": {
+      "label": "Afficher l'icône"
+    },
+    "accent": {
+      "label": "Couleur d'accentuation",
+      "description": "Couleur des valeurs, des barres et de l'activité du jour."
+    }
+  }
+}

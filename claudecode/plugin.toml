@@ -1,0 +1,83 @@
+# Claude Code Usage — Noctalia v5 plugin.
+#
+# Port of the Dank Material Shell "Claude Code Usage" plugin. The data work lives in
+# get-claude-usage (a Bash script run with --json); a headless [[service]] runs it on
+# an interval and publishes the parsed result to the plugin's shared state. The bar
+# [[widget]] and the [[desktop_widget]] are thin presentation clients that watch that
+# state — so usage is fetched once and mirrored everywhere.
+#
+# Requires: jq, curl, and an authenticated Claude Code install (~/.claude/.credentials.json).
+
+id = "jrohland/claudecode"
+name = "Claude Code Usage"
+version = "2.0.0"
+min_noctalia = "5.0.0"
+author = "Nicolas Bellamy (Noctalia port by jrohland)"
+license = "MIT"
+icon = "robot"
+description = "Monitor Claude Code subscription usage: rate limits, token consumption, estimated cost, daily activity, and per-model/per-profile breakdowns."
+tags = ["claude", "ai", "usage", "monitoring"]
+
+# Plugin-level settings: shared by every entry, edited under Settings → Plugins,
+# read anywhere via noctalia.getConfig(key).
+[[setting]]
+key = "refresh_interval"
+type = "int"
+label_key = "settings.refresh_interval.label"
+description_key = "settings.refresh_interval.description"
+default = 2
+min = 2
+max = 15
+
+[[setting]]
+key = "currency"
+type = "select"
+label_key = "settings.currency.label"
+description_key = "settings.currency.description"
+default = "auto"
+options = [
+  { value = "auto", label_key = "settings.currency.options.auto" },
+  { value = "usd", label_key = "settings.currency.options.usd" },
+  { value = "eur", label_key = "settings.currency.options.eur" },
+]
+
+# Headless background service: owns the fetch loop, publishes "usage" + "status".
+[[service]]
+id = "service"
+entry = "service.luau"
+
+# Bar tile: a pill showing the chosen rate-window utilization, colored by threshold,
+# with a summary tooltip. Left click forces an immediate refresh.
+[[widget]]
+id = "pill"
+entry = "widget.luau"
+
+  [[widget.setting]]
+  key = "pill_metric"
+  type = "select"
+  label_key = "settings.pill_metric.label"
+  description_key = "settings.pill_metric.description"
+  default = "five_hour"
+  options = [
+    { value = "five_hour", label_key = "settings.pill_metric.options.five_hour" },
+    { value = "seven_day", label_key = "settings.pill_metric.options.seven_day" },
+  ]
+
+  [[widget.setting]]
+  key = "show_glyph"
+  type = "bool"
+  label_key = "settings.show_glyph.label"
+  default = true
+
+# Desktop tile: the rich detail panel (rate windows, token columns, daily activity,
+# per-model breakdown, all-time stats, profile selector).
+[[desktop_widget]]
+id = "panel"
+entry = "desktop.luau"
+
+  [[desktop_widget.setting]]
+  key = "accent"
+  type = "color"
+  label_key = "settings.accent.label"
+  description_key = "settings.accent.description"
+  default = "primary"

@@ -1,0 +1,53 @@
+{
+  "title": "Claude Code Usage",
+  "used": "used",
+  "resets_in": "Resets in",
+  "resetting": "Resetting…",
+  "five_hour": "5h Rate Window",
+  "seven_day": "7-Day Usage",
+  "token_consumption": "Token Consumption",
+  "today": "Today",
+  "week": "Week",
+  "month": "Month",
+  "daily_activity": "Daily Activity",
+  "models_this_week": "Models This Week",
+  "since": "Since",
+  "sessions": "sessions",
+  "msgs": "msgs",
+  "all": "All",
+  "profile": "Profile",
+  "days": "Mo,Tu,We,Th,Fr,Sa,Su",
+  "currency": {
+    "auto_default": "usd"
+  },
+  "settings": {
+    "refresh_interval": {
+      "label": "Refresh interval",
+      "description": "How often to fetch usage data (minutes)."
+    },
+    "currency": {
+      "label": "Currency",
+      "description": "Currency for displayed costs. Auto follows the interface language.",
+      "options": {
+        "auto": "Auto",
+        "usd": "USD ($)",
+        "eur": "EUR (€)"
+      }
+    },
+    "pill_metric": {
+      "label": "Bar metric",
+      "description": "Which rate window the bar pill shows.",
+      "options": {
+        "five_hour": "5-hour window",
+        "seven_day": "7-day window"
+      }
+    },
+    "show_glyph": {
+      "label": "Show glyph"
+    },
+    "accent": {
+      "label": "Accent color",
+      "description": "Color for values, bars, and today's activity."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Noctalia plugin source catalog — index of plugins in this repo.
+# One [[plugin]] row per plugin subdirectory (subdir name = id suffix).
+[[plugin]]
+id = "jrohland/claudecode"
+name = "Claude Code Usage"
+version = "2.0.0"
+author = "Nicolas Bellamy (Noctalia port by jrohland)"
+license = "MIT"
+icon = "robot"
+description = "Monitor Claude Code subscription usage: rate limits, token consumption, estimated cost, daily activity, and per-model/per-profile breakdowns."
+min_noctalia = "5.0.0"
+tags = ["claude", "ai", "usage", "monitoring"]
