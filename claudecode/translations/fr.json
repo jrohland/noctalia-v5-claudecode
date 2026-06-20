@@ -19,6 +19,12 @@
   "all": "Tout",
   "profile": "Profil",
   "days": "Lu,Ma,Me,Je,Ve,Sa,Di",
+  "pace": {
+    "under": "sous le rythme",
+    "over": "au-dessus du rythme",
+    "on": "Dans les temps",
+    "over_quota": "Quota dépassé"
+  },
   "currency": {
     "auto_default": "eur"
   },

@@ -2,10 +2,10 @@
 --
 -- The fetch logic lives in service.luau; this pill only mirrors the published
 -- "usage" / "status" state. It shows the chosen rate-window utilization as
--- "NN%", colored by threshold (cf. the DMS progressColor), with a multi-line
--- summary tooltip standing in for the bar-click popout the runtime doesn't offer.
+-- "NN%", colored by pacing (neutral on/under pace, warning over pace, error over
+-- quota) with a "↑" cue when off-track, plus a summary tooltip.
 --
--- Left click forces an immediate refresh (bumps refresh_nonce, watched by the service).
+-- Left click opens the launcher breakdown; right click forces a refresh.
 
 local metric = barWidget.getConfig("pill_metric") or "five_hour"
 local showGlyph = barWidget.getConfig("show_glyph")
@@ -44,13 +44,64 @@ local function formatCost(usd, rate)
   return `{sym}{string.format("%.2f", n)}{suffix}`
 end
 
--- Pill color: default (neutral, like the other bar widgets) until the window
--- fills up — then warning >50%, error >80%. The DMS pill kept its TEXT neutral
--- and only colored the progress ring; with no ring, the number carries the cue.
-local function pillColor(pct)
-  if pct > 80 then return "error" end
-  if pct > 50 then return "warning" end
+-- ── pacing (usage vs. time elapsed through the window) ─────────────────────
+-- Pill stays neutral (like the other bar widgets) while you're on/under pace,
+-- turns warning when over pace (burning faster than the clock), and error when
+-- over quota. Windows treated as fixed-length; elapsed time derived from reset.
+local FIVE_HOUR_SECS = 5 * 3600
+local SEVEN_DAY_SECS = 7 * 86400
+local PACE_MARGIN = 5
+
+local function tzOffset()
+  local now = os.time()
+  return os.difftime(now, os.time(os.date("!*t", now)))
+end
+
+local function resetEpoch(iso)
+  if type(iso) ~= "string" or iso == "" then return nil end
+  local y, mo, d, h, mi, s = iso:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+  if not y then return nil end
+  local e = os.time({
+    year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+    hour = tonumber(h), min = tonumber(mi), sec = tonumber(s),
+  })
+  if not e then return nil end
+  return e + tzOffset()
+end
+
+-- → { delta, status } ; status: over_quota | over | under | on | unknown
+local function pace(util, resetIso, durationSecs)
+  util = tonumber(util) or 0
+  local epoch = resetEpoch(resetIso)
+  if not epoch then
+    if util >= 100 then return { delta = util, status = "over_quota" } end
+    return { status = "unknown" }
+  end
+  local remaining = epoch - os.time()
+  local timeFrac = (durationSecs - remaining) / durationSecs
+  if timeFrac < 0 then timeFrac = 0 elseif timeFrac > 1 then timeFrac = 1 end
+  local delta = util - timeFrac * 100
+  if util >= 100 then return { delta = delta, status = "over_quota" } end
+  if delta >= PACE_MARGIN then return { delta = delta, status = "over" } end
+  if delta <= -PACE_MARGIN then return { delta = delta, status = "under" } end
+  return { delta = delta, status = "on" }
+end
+
+local SEVERITY = { unknown = 0, under = 0, on = 0, over = 1, over_quota = 2 }
+
+local function pillPaceColor(status)
+  if status == "over_quota" then return "error" end
+  if status == "over" then return "warning" end
   return "on_surface"
+end
+
+-- Human pace phrase for the tooltip, or nil when unknown.
+local function paceLabel(p)
+  if p.status == "over_quota" then return noctalia.tr("pace.over_quota") end
+  if p.status == "over" then return `{math.floor(p.delta + 0.5)}% {noctalia.tr("pace.over")}` end
+  if p.status == "under" then return `{math.floor(-p.delta + 0.5)}% {noctalia.tr("pace.under")}` end
+  if p.status == "on" then return noctalia.tr("pace.on") end
+  return nil
 end
 
 -- ── render ─────────────────────────────────────────────────────────────────
@@ -76,17 +127,28 @@ local function render()
 
   local five = tonumber(usage.five_hour_util) or 0
   local seven = tonumber(usage.seven_day_util) or 0
-  local text, util
+  local pFive = pace(five, usage.five_hour_reset, FIVE_HOUR_SECS)
+  local pSeven = pace(seven, usage.seven_day_reset, SEVEN_DAY_SECS)
+
+  local text, shown
   if metric == "both" then
-    -- 5h · 7d; color follows whichever window is fuller.
     text = `{math.floor(five + 0.5)}% · {math.floor(seven + 0.5)}%`
-    util = math.max(five, seven)
+    shown = { pFive, pSeven }
   elseif metric == "seven_day" then
-    text, util = `{math.floor(seven + 0.5)}%`, seven
+    text, shown = `{math.floor(seven + 0.5)}%`, { pSeven }
   else
-    text, util = `{math.floor(five + 0.5)}%`, five
+    text, shown = `{math.floor(five + 0.5)}%`, { pFive }
   end
-  local color = pillColor(util)
+
+  -- Color + caret by the worst pace status among the shown window(s).
+  local worst = "unknown"
+  for _, p in shown do
+    if SEVERITY[p.status] > SEVERITY[worst] then worst = p.status end
+  end
+  local color = pillPaceColor(worst)
+  if worst == "over" or worst == "over_quota" then
+    text = `{text} ↑`
+  end
 
   if showGlyph then
     barWidget.setGlyph("robot")
@@ -105,11 +167,15 @@ local function render()
   local todayIdx = (t.wday == 1) and 7 or (t.wday - 1)
   local todayTokens = (type(usage.daily) == "table" and usage.daily[todayIdx]) or 0
 
-  local fivePct = math.floor((tonumber(usage.five_hour_util) or 0) + 0.5)
-  local sevenPct = math.floor((tonumber(usage.seven_day_util) or 0) + 0.5)
+  local function rateLine(label, pct, p)
+    local pl = paceLabel(p)
+    if pl then return `{label}: {math.floor(pct + 0.5)}%  ·  {pl}` end
+    return `{label}: {math.floor(pct + 0.5)}%`
+  end
   barWidget.setTooltip(table.concat({
     sub,
-    `5h: {fivePct}%  ·  7d: {sevenPct}%`,
+    rateLine("5h", five, pFive),
+    rateLine("7d", seven, pSeven),
     `Today: {formatTokens(todayTokens)}  ({formatCost(usage.today_cost, rate)})`,
     `Week:  {formatTokens(usage.week_tokens)}  ({formatCost(usage.week_cost, rate)})`,
   }, "\n"))

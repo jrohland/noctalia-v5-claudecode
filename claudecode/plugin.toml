@@ -10,7 +10,7 @@
 
 id = "jrohland/claudecode"
 name = "Claude Code Usage"
-version = "2.2.0"
+version = "2.3.0"
 min_noctalia = "5.0.0"
 author = "Nicolas Bellamy (Noctalia port by jrohland)"
 license = "MIT"

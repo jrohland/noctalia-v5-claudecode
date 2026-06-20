@@ -66,6 +66,55 @@ local function formatCountdown(iso)
   return `{mm}m`
 end
 
+-- ── pacing (usage vs. time elapsed through the window) ─────────────────────
+
+local FIVE_HOUR_SECS = 5 * 3600
+local SEVEN_DAY_SECS = 7 * 86400
+local PACE_MARGIN = 5
+
+local function resetEpoch(iso)
+  if type(iso) ~= "string" or iso == "" then return nil end
+  local y, mo, d, h, mi, s = iso:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+  if not y then return nil end
+  local e = os.time({
+    year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+    hour = tonumber(h), min = tonumber(mi), sec = tonumber(s),
+  })
+  if not e then return nil end
+  return e + tzOffset()
+end
+
+local function pace(util, resetIso, durationSecs)
+  util = tonumber(util) or 0
+  local epoch = resetEpoch(resetIso)
+  if not epoch then
+    if util >= 100 then return { delta = util, status = "over_quota" } end
+    return { status = "unknown" }
+  end
+  local remaining = epoch - os.time()
+  local timeFrac = (durationSecs - remaining) / durationSecs
+  if timeFrac < 0 then timeFrac = 0 elseif timeFrac > 1 then timeFrac = 1 end
+  local delta = util - timeFrac * 100
+  if util >= 100 then return { delta = delta, status = "over_quota" } end
+  if delta >= PACE_MARGIN then return { delta = delta, status = "over" } end
+  if delta <= -PACE_MARGIN then return { delta = delta, status = "under" } end
+  return { delta = delta, status = "on" }
+end
+
+local function paceLabel(p)
+  if p.status == "over_quota" then return noctalia.tr("pace.over_quota") end
+  if p.status == "over" then return `{math.floor(p.delta + 0.5)}% {noctalia.tr("pace.over")}` end
+  if p.status == "under" then return `{math.floor(-p.delta + 0.5)}% {noctalia.tr("pace.under")}` end
+  if p.status == "on" then return noctalia.tr("pace.on") end
+  return nil
+end
+
+local function paceGlyph(status, default)
+  if status == "over_quota" then return "alert-octagon" end
+  if status == "over" then return "alert-triangle" end
+  return default
+end
+
 -- ── result rows ─────────────────────────────────────────────────────────────
 
 local function round(x) return math.floor((tonumber(x) or 0) + 0.5) end
@@ -77,24 +126,30 @@ local function buildRows(usage)
   local todayIdx = (t.wday == 1) and 7 or (t.wday - 1)
   local todayTokens = (type(usage.daily) == "table" and usage.daily[todayIdx]) or 0
 
-  local function ratdetail(util, resetIso)
+  local function ratdetail(util, resetIso, durationSecs)
+    local p = pace(util, resetIso, durationSecs)
     local cd = formatCountdown(resetIso)
     local base = `{round(util)}% {noctalia.tr("used")}`
+    local pl = paceLabel(p)
+    if pl then base = `{base} · {pl}` end
     if cd then base = `{base} · {noctalia.tr("resets_in")} {cd}` end
-    return base
+    return base, p
   end
+
+  local fiveSub, fiveP = ratdetail(usage.five_hour_util, usage.five_hour_reset, FIVE_HOUR_SECS)
+  local sevenSub, sevenP = ratdetail(usage.seven_day_util, usage.seven_day_reset, SEVEN_DAY_SECS)
 
   local rows = {
     {
-      id = "five_hour", glyph = "gauge",
+      id = "five_hour", glyph = paceGlyph(fiveP.status, "gauge"),
       title = noctalia.tr("five_hour"),
-      subtitle = ratdetail(usage.five_hour_util, usage.five_hour_reset),
+      subtitle = fiveSub,
       badge = `{round(usage.five_hour_util)}%`,
     },
     {
-      id = "seven_day", glyph = "calendar",
+      id = "seven_day", glyph = paceGlyph(sevenP.status, "calendar"),
       title = noctalia.tr("seven_day"),
-      subtitle = ratdetail(usage.seven_day_util, usage.seven_day_reset),
+      subtitle = sevenSub,
       badge = `{round(usage.seven_day_util)}%`,
     },
     {

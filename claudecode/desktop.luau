@@ -52,11 +52,6 @@ local function formatCost(usd, rate)
   return `{sym}{string.format("%.2f", n)}{suffix}`
 end
 
-local function progressColor(pct)
-  if pct > 80 then return "error" end
-  if pct > 50 then return "warning" end
-  return "primary"
-end
 
 local function shortModelName(name)
   if type(name) ~= "string" or #name == 0 then return tostring(name) end
@@ -95,6 +90,81 @@ local function formatCountdown(iso)
   if d > 0 then return `{d}d {h}h {m}m` end
   if h > 0 then return `{h}h {m}m` end
   return `{m}m`
+end
+
+-- ── pacing (usage vs. time elapsed through the window) ─────────────────────
+-- Are we burning quota faster than the clock? Windows are treated as fixed-length
+-- and elapsed time is derived from the reset timestamp — an approximation of
+-- Anthropic's rolling limits (same approach as YapCap), good enough as a cue.
+local FIVE_HOUR_SECS = 5 * 3600
+local SEVEN_DAY_SECS = 7 * 86400
+local PACE_MARGIN = 5 -- % points around parity that still read as "on pace"
+
+-- Returns { timeFrac, delta, status } or nil when pace can't be determined.
+--   status: "over_quota" | "over" | "under" | "on"
+local function pace(util, resetIso, durationSecs)
+  util = tonumber(util) or 0
+  local epoch = resetEpoch(resetIso)
+  if not epoch then
+    if util >= 100 then return { timeFrac = 1, delta = util, status = "over_quota" } end
+    return nil
+  end
+  local remaining = epoch - os.time()
+  local timeFrac = (durationSecs - remaining) / durationSecs
+  if timeFrac < 0 then timeFrac = 0 elseif timeFrac > 1 then timeFrac = 1 end
+  local delta = util - timeFrac * 100
+  local status
+  if util >= 100 then status = "over_quota"
+  elseif delta >= PACE_MARGIN then status = "over"
+  elseif delta <= -PACE_MARGIN then status = "under"
+  else status = "on" end
+  return { timeFrac = timeFrac, delta = delta, status = status }
+end
+
+local function paceColor(status)
+  if status == "over_quota" then return "error" end
+  if status == "over" then return "warning" end
+  return accent -- on / under: keep the bar reading as "filled"
+end
+
+-- A usage bar with an inlined time-tick. ui.* has no overlay, so we build it from
+-- segments: fill / track, with a 2px tick sliver at the time-elapsed position.
+local TICK_TRACK = "surface_container_highest"
+local TICK_MARK = "on_surface"
+local BAR_H = 8
+
+local function seg(w, color)
+  if w <= 0 then return nil end
+  return ui.box({ width = w, height = BAR_H, fill = color })
+end
+
+local function paceBar(util, timeFrac, fill)
+  local W = CONTENT_W
+  local u = math.max(0, math.min(1, (tonumber(util) or 0) / 100))
+  local uW = math.floor(u * W)
+  local parts = {}
+  local function add(b) if b then table.insert(parts, b) end end
+
+  if timeFrac == nil then
+    add(seg(uW, fill))
+    add(seg(W - uW, TICK_TRACK))
+  else
+    local t = math.max(0, math.min(1, timeFrac))
+    local tW = math.floor(t * W)
+    local TICK = 2
+    if t <= u then
+      add(seg(tW, fill))
+      add(seg(TICK, TICK_MARK))
+      add(seg(uW - tW - TICK, fill))
+      add(seg(W - uW, TICK_TRACK))
+    else
+      add(seg(uW, fill))
+      add(seg(tW - uW - TICK, TICK_TRACK))
+      add(seg(TICK, TICK_MARK))
+      add(seg(W - tW, TICK_TRACK))
+    end
+  end
+  return ui.row({ width = W, height = BAR_H, radius = 4 }, parts)
 end
 
 -- ── selected-profile projection ────────────────────────────────────────────
@@ -150,21 +220,37 @@ local function card(children)
   }, children)
 end
 
--- Rate window card: title, "NN% used" (threshold color), progress bar, reset countdown.
-local function rateCard(title, util, resetIso)
+-- Rate window card: title, "NN% used" (pace-colored), usage bar with time-tick,
+-- and a pace caption ("X% under/over pace · resets in …").
+local function rateCard(title, util, resetIso, durationSecs)
   util = tonumber(util) or 0
-  local color = progressColor(util)
+  local p = pace(util, resetIso, durationSecs)
+  local status = p and p.status or "unknown"
+  local fill = (status == "unknown") and accent or paceColor(status)
+
   local rows = {
     ui.row({ width = CONTENT_W, justify = "space_between" }, {
       ui.label({ text = title, fontSize = 14, fontWeight = "medium" }),
-      ui.label({ text = `{math.floor(util + 0.5)}% {noctalia.tr("used")}`, fontSize = 14, color = color }),
+      ui.label({ text = `{math.floor(util + 0.5)}% {noctalia.tr("used")}`, fontSize = 14, color = fill }),
     }),
-    ui.progress({ progress = math.min(1, util / 100), fill = color, width = CONTENT_W, height = 8, radius = 4 }),
+    paceBar(util, p and p.timeFrac or nil, fill),
   }
+
   local cd = formatCountdown(resetIso)
-  if cd then
-    table.insert(rows, muted(`{noctalia.tr("resets_in")} {cd}`, 11))
+  local caption
+  if status == "over_quota" then
+    caption = noctalia.tr("pace.over_quota")
+  elseif status == "over" then
+    caption = `{math.floor(p.delta + 0.5)}% {noctalia.tr("pace.over")}`
+  elseif status == "under" then
+    caption = `{math.floor(-p.delta + 0.5)}% {noctalia.tr("pace.under")}`
+  elseif status == "on" then
+    caption = noctalia.tr("pace.on")
   end
+  if cd then
+    caption = caption and `{caption} · {noctalia.tr("resets_in")} {cd}` or `{noctalia.tr("resets_in")} {cd}`
+  end
+  if caption then table.insert(rows, muted(caption, 11)) end
   return card(rows)
 end
 
@@ -293,8 +379,8 @@ local function render()
     }))
   end
 
-  table.insert(sections, rateCard(noctalia.tr("five_hour"), pd.five_hour_util, pd.five_hour_reset))
-  table.insert(sections, rateCard(noctalia.tr("seven_day"), pd.seven_day_util, pd.seven_day_reset))
+  table.insert(sections, rateCard(noctalia.tr("five_hour"), pd.five_hour_util, pd.five_hour_reset, FIVE_HOUR_SECS))
+  table.insert(sections, rateCard(noctalia.tr("seven_day"), pd.seven_day_util, pd.seven_day_reset, SEVEN_DAY_SECS))
 
   -- Token consumption: Today / Week / Month.
   local t = os.date("*t")

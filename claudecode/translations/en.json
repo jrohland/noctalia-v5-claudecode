@@ -19,6 +19,12 @@
   "all": "All",
   "profile": "Profile",
   "days": "Mo,Tu,We,Th,Fr,Sa,Su",
+  "pace": {
+    "under": "under pace",
+    "over": "over pace",
+    "on": "On pace",
+    "over_quota": "Over quota"
+  },
   "currency": {
     "auto_default": "usd"
   },
