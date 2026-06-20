@@ -39,7 +39,8 @@
       "description": "Fenêtre de limite affichée dans la pilule de la barre.",
       "options": {
         "five_hour": "Fenêtre 5 heures",
-        "seven_day": "Fenêtre 7 jours"
+        "seven_day": "Fenêtre 7 jours",
+        "both": "Les deux (5h · 7j)"
       }
     },
     "show_glyph": {

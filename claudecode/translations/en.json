@@ -39,7 +39,8 @@
       "description": "Which rate window the bar pill shows.",
       "options": {
         "five_hour": "5-hour window",
-        "seven_day": "7-day window"
+        "seven_day": "7-day window",
+        "both": "Both (5h · 7d)"
       }
     },
     "show_glyph": {

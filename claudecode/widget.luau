@@ -74,15 +74,25 @@ local function render()
     return
   end
 
-  local util = (metric == "seven_day") and usage.seven_day_util or usage.five_hour_util
-  util = tonumber(util) or 0
+  local five = tonumber(usage.five_hour_util) or 0
+  local seven = tonumber(usage.seven_day_util) or 0
+  local text, util
+  if metric == "both" then
+    -- 5h · 7d; color follows whichever window is fuller.
+    text = `{math.floor(five + 0.5)}% · {math.floor(seven + 0.5)}%`
+    util = math.max(five, seven)
+  elseif metric == "seven_day" then
+    text, util = `{math.floor(seven + 0.5)}%`, seven
+  else
+    text, util = `{math.floor(five + 0.5)}%`, five
+  end
   local color = pillColor(util)
 
   if showGlyph then
     barWidget.setGlyph("robot")
     barWidget.setGlyphColor(color)
   end
-  barWidget.setText(`{math.floor(util + 0.5)}%`)
+  barWidget.setText(text)
   barWidget.setColor(color)
 
   -- Summary tooltip — the lightweight stand-in for the lost popout.

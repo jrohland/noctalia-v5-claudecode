@@ -10,7 +10,7 @@
 
 id = "jrohland/claudecode"
 name = "Claude Code Usage"
-version = "2.0.0"
+version = "2.1.0"
 min_noctalia = "5.0.0"
 author = "Nicolas Bellamy (Noctalia port by jrohland)"
 license = "MIT"
@@ -61,6 +61,7 @@ entry = "widget.luau"
   options = [
     { value = "five_hour", label_key = "settings.pill_metric.options.five_hour" },
     { value = "seven_day", label_key = "settings.pill_metric.options.seven_day" },
+    { value = "both", label_key = "settings.pill_metric.options.both" },
   ]
 
   [[widget.setting]]
