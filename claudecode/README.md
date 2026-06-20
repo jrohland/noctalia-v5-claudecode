@@ -5,8 +5,12 @@ usage. Ported from the original [Dank Material Shell plugin](https://github.com/
 
 ## Features
 
-- **Bar pill** showing 5-hour (or 7-day) rate-limit utilization as `NN%`, colored by
-  threshold (>80% error, >50% warning, else accent), with a summary tooltip.
+- **Bar pill** showing 5-hour, 7-day, or both rate-limit utilizations as `NN%`, colored by
+  threshold (>80% error, >50% warning, else neutral), with a summary tooltip.
+  **Left-click** opens the usage breakdown in the launcher overlay; **right-click** refreshes.
+- **Launcher breakdown** (`/cc`) — a centered overlay listing rate windows, today/week/month
+  tokens + cost, per-model usage, and all-time stats. Appears over the current workspace
+  (works on a tiling WM where the desktop is never visible).
 - **Desktop widget panel** with:
   - 5-hour and 7-day rate windows with reset countdowns
   - Token consumption (today / week / month) with estimated cost
@@ -21,11 +25,18 @@ usage. Ported from the original [Dank Material Shell plugin](https://github.com/
 
 ## How it differs from the DMS version
 
-Noctalia's plugin API has no bar-click popout, so the rich detail UI is a **desktop
-widget** (added from the desktop-widget editor) rather than a popout from the bar pill.
-Circular progress rings are rendered as linear bars, and the interactive per-bar hover
-tooltips on the daily chart are not available (Noctalia's `ui.*` has no hover events).
-The profile tabs/dropdown become a cycle button.
+Noctalia's plugin API has no bar-anchored popout (verified against the runtime — bar
+widgets only render text/glyph/tooltip, and there is no plugin panel/popout API). So the
+rich UI is split across two surfaces:
+
+- a **launcher breakdown** (`/cc`, or left-click the pill) — a centered overlay that
+  appears over the current workspace, the closest thing to a click-flyout;
+- a **desktop widget** with the full visual panel (charts/bars), added from the
+  desktop-widget editor.
+
+Circular progress rings are rendered as linear bars, the daily chart has no per-bar hover
+tooltips (Noctalia's `ui.*` has no hover events), and the profile tabs/dropdown become a
+cycle button.
 
 ## Requirements
 

@@ -17,9 +17,11 @@ noctalia msg plugins source add jrohland git https://github.com/jrohland/noctali
 noctalia msg plugins enable jrohland/claudecode
 ```
 
-Then add the **Claude Code Usage** bar widget from the Add-widget picker, and the desktop
-widget from the desktop-widget editor (`noctalia msg desktop-widgets-edit`). Configure the
-refresh interval and currency under Settings → Plugins.
+Then add the **Claude Code Usage** bar widget from the Add-widget picker. **Left-click** the
+pill to open the usage breakdown in the launcher (or type `/cc`); **right-click** to refresh.
+For the full visual panel, add the desktop widget from the desktop-widget editor
+(`noctalia msg desktop-widgets-edit`). Configure the refresh interval and currency under
+Settings → Plugins.
 
 Update later with `noctalia msg plugins update`, or remove the source with
 `noctalia msg plugins source remove jrohland`.
