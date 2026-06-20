@@ -8,6 +8,25 @@ per-profile breakdowns). Ported from the
 This repository is a **Noctalia plugin source**: the root `catalog.toml` indexes the
 plugins, and each plugin lives in its own subdirectory (here, `claudecode/`).
 
+## Screenshots
+
+**Bar pill** (left-click opens the launcher breakdown; hover for a summary):
+
+<img src="assets/bar-pill.png" alt="Bar pill with tooltip" width="240">
+
+<table>
+  <tr>
+    <td valign="top" width="50%">
+      <b>Launcher breakdown</b> — type <code>/cc</code> or left-click the pill<br><br>
+      <img src="assets/launcher.png" alt="Launcher usage breakdown">
+    </td>
+    <td valign="top" width="50%">
+      <b>Desktop panel</b><br><br>
+      <img src="assets/desktop-panel.png" alt="Desktop usage panel">
+    </td>
+  </tr>
+</table>
+
 ## Install
 
 Add this repo as a plugin source, then enable the plugin:
