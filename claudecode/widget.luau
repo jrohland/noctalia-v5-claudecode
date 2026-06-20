@@ -130,7 +130,14 @@ function update()
   render()
 end
 
+-- Left click: open the usage breakdown in the launcher overlay (appears over the
+-- current workspace — the closest thing to a click-flyout the plugin API allows).
 function onClick()
+  noctalia.runAsync([[noctalia msg panel-open launcher "/cc "]])
+end
+
+-- Right click: force an immediate refresh (service watches refresh_nonce).
+function onRightClick()
   local nonce = noctalia.state.get("refresh_nonce")
   noctalia.state.set("refresh_nonce", (tonumber(nonce) or 0) + 1)
 end

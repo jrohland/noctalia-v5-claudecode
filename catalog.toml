@@ -3,7 +3,7 @@
 [[plugin]]
 id = "jrohland/claudecode"
 name = "Claude Code Usage"
-version = "2.1.0"
+version = "2.2.0"
 author = "Nicolas Bellamy (Noctalia port by jrohland)"
 license = "MIT"
 icon = "robot"

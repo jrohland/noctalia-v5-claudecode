@@ -10,7 +10,7 @@
 
 id = "jrohland/claudecode"
 name = "Claude Code Usage"
-version = "2.1.0"
+version = "2.2.0"
 min_noctalia = "5.0.0"
 author = "Nicolas Bellamy (Noctalia port by jrohland)"
 license = "MIT"
@@ -69,6 +69,15 @@ entry = "widget.luau"
   type = "bool"
   label_key = "settings.show_glyph.label"
   default = true
+
+# Launcher provider: a usage breakdown in the launcher overlay (appears over the
+# current workspace). Type `/cc`, or left-click the bar widget to open it pre-filled.
+[[launcher_provider]]
+id = "breakdown"
+entry = "launcher.luau"
+prefix = "/cc"
+glyph = "robot"
+include_in_global_search = false
 
 # Desktop tile: the rich detail panel (rate windows, token columns, daily activity,
 # per-model breakdown, all-time stats, profile selector).
