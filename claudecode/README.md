@@ -184,10 +184,17 @@ so they need no network and no credentials.
 
 ## AI assistance
 
-This plugin was written with AI assistance (Claude Code). The result is plain, readable
-Luau and Bash: nothing here is minified, obfuscated, or machine-emitted output, every
-non-obvious decision carries a comment explaining why, and the data engine has a test
-suite covering its parsing. The author reviewed it before publishing and maintains it.
+This plugin was built with AI assistance, and not in a small way: the port from Dank
+Material Shell and everything since — the rate-window handling, the generated bar ring,
+the two panels, the Bash data engine — were written with Claude Code, with the author
+directing the work, testing each change against a running shell, and reviewing what
+shipped.
+
+It is written to be read. Plain Luau and Bash, nothing minified, obfuscated or
+machine-emitted; a comment on every non-obvious decision saying why it is that way
+rather than what it does; and a 92-assertion suite over the data engine's parsing that
+needs no network and no credentials to run. If a reviewer finds a line whose purpose is
+not clear from the code and its comment, that is worth an issue.
 
 ## License
 
