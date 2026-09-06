@@ -182,6 +182,13 @@ noctalia msg plugins enable jrohland/claudecode
 Run the data-engine tests with `bash tests/test-get-claude-usage.sh`. They mock `curl`,
 so they need no network and no credentials.
 
+## AI assistance
+
+This plugin was written with AI assistance (Claude Code). The result is plain, readable
+Luau and Bash: nothing here is minified, obfuscated, or machine-emitted output, every
+non-obvious decision carries a comment explaining why, and the data engine has a test
+suite covering its parsing. The author reviewed it before publishing and maintains it.
+
 ## License
 
 [MIT](LICENSE)
