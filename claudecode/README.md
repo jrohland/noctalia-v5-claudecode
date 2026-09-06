@@ -53,6 +53,13 @@ tokens with their cost.
 - **Left-click** the pill opens the usage panel.
 - **Right-click** forces a refresh.
 
+`pill_extras` puts more beside the percentage: the time left in the window
+(`17% · 3h 20m`), the pace against the clock (`↓16` is sixteen points under where the
+window says you should be, `↑16` is sixteen over), both, or neither. It describes
+whichever window the bar metric tracks — the 5-hour one under `both`, the same window
+the ring follows, so the two never disagree. With pace showing, the bare `↑` off-track
+cue steps aside; the number already says it.
+
 Both are `[widget.actions]` defaults, so they are re-bindable in the bar's gesture
 settings; the script's own `onClick` / `onRightClick` do the same thing if you remove a
 binding.
@@ -97,6 +104,7 @@ with the widget.
 | `currency` | `select` | `auto` | Cost display: `auto` follows the locale, or force `usd` / `eur`. |
 | `pill_metric` | `select` | `five_hour` | Which window the pill reports: `five_hour`, `seven_day`, or `both`. |
 | `pill_style` | `select` | `glyph_text` | Pill appearance: glyph + percentage, a circular ring, or ring + percentage. |
+| `pill_extras` | `select` | `none` | What rides beside the percentage: `countdown`, `pace`, `both` or `none`. |
 | `show_glyph` | `bool` | `true` | Show the Claude glyph next to the percentage. |
 | `ring_size` | `int` | `16` | Ring diameter in pixels (10–28). Keep it under the bar height or it clips. |
 | `ring_thickness` | `int` | `3` | Ring stroke width in pixels (1–6). |

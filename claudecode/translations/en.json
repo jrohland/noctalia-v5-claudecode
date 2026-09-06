@@ -65,6 +65,16 @@
         "ring_text": "Ring + percentage"
       }
     },
+    "pill_extras": {
+      "label": "Bar extras",
+      "description": "What to show beside the percentage. Describes the window the bar metric tracks (the 5-hour one under “Both”).",
+      "options": {
+        "none": "Nothing",
+        "countdown": "Time left",
+        "pace": "Pace (↑/↓ points)",
+        "both": "Time left + pace"
+      }
+    },
     "ring_size": {
       "label": "Ring size",
       "description": "Ring diameter in pixels. Keep it under the bar height."

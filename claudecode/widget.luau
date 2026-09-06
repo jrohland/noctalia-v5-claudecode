@@ -32,6 +32,7 @@ local function config()
   if showGlyph == nil then showGlyph = true end
   return {
     metric = noctalia.getConfig("pill_metric") or "five_hour",
+    extras = noctalia.getConfig("pill_extras") or "none",
     style = noctalia.getConfig("pill_style") or "glyph_text",
     showGlyph = showGlyph,
     size = tonumber(noctalia.getConfig("ring_size")) or 16,
@@ -71,18 +72,40 @@ local function render()
 
   -- The ring shows one window; with metric "both" that is the 5-hour one (the
   -- one that moves minute to minute) and the text carries both numbers.
-  local text, shown, arc
+  local text, shown, arc, tracked
   if cfg.metric == "both" then
     text = `{round(five)}% · {round(seven)}%`
     shown = { pFive, pSeven }
     arc = { pct = five, p = pFive }
+    tracked = { p = pFive, reset = usage.five_hour_reset }
   elseif cfg.metric == "seven_day" then
     text, shown = `{round(seven)}%`, { pSeven }
     arc = { pct = seven, p = pSeven }
+    tracked = { p = pSeven, reset = usage.seven_day_reset }
   else
     text, shown = `{round(five)}%`, { pFive }
     arc = { pct = five, p = pFive }
+    tracked = { p = pFive, reset = usage.five_hour_reset }
   end
+
+  -- pill_extras rides beside the percentage, describing the window the ring
+  -- tracks — the 5-hour one under "both", the same one the arc follows, so the
+  -- countdown never belongs to a different window than the ring does.
+  local extras = {}
+  if cfg.extras == "countdown" or cfg.extras == "both" then
+    local cd = shared.formatCountdownShort(tracked.reset)
+    if cd then table.insert(extras, cd) end
+  end
+  if cfg.extras == "pace" or cfg.extras == "both" then
+    -- Points ahead of (↑) or behind (↓) where the clock says the window should
+    -- be. Nothing to say when the reset stamp was unusable.
+    local delta = tracked.p.delta
+    if delta ~= nil then
+      local n = round(math.abs(delta))
+      table.insert(extras, (delta >= 0) and `↑{n}` or `↓{n}`)
+    end
+  end
+  if #extras > 0 then text = `{text} · {table.concat(extras, " ")}` end
 
   -- Color + caret by the worst pace status among the shown window(s).
   local worst = "unknown"
@@ -90,7 +113,8 @@ local function render()
     if shared.SEVERITY[p.status] > shared.SEVERITY[worst] then worst = p.status end
   end
   local color = paceColor(worst, "on_surface")
-  if worst == "over" or worst == "over_quota" then
+  local showsPace = cfg.extras == "pace" or cfg.extras == "both"
+  if not showsPace and (worst == "over" or worst == "over_quota") then
     text = `{text} ↑`
   end
 
