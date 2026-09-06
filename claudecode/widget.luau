@@ -126,16 +126,13 @@ local function render()
   -- shell lays those out as a two-column grid, so the labels and the numbers
   -- line up instead of drifting with the width of each line.
   local rate = usage.usd_eur_rate
-  local sub = usage.subscription_type
-  if sub == nil or sub == "" or sub == "unknown" then sub = "Claude Code" end
-  local tier = usage.rate_limit_tier
   local todayTokens = (type(usage.daily) == "table" and usage.daily[shared.todayIndex()]) or 0
 
   local rows = {}
   local function row(key, value) table.insert(rows, { key = key, value = value }) end
 
   -- Header: the plan on the right, so it reads as this account's identity.
-  row(sub, (tier ~= nil and tier ~= "" and tier ~= "unknown") and tier or "")
+  row(noctalia.tr("plan"), shared.planName(usage.subscription_type, usage.rate_limit_tier))
 
   -- One row per window the API enforces, including a model-scoped week when the
   -- plan has one. "12%  ·  3h 42m (19:30)" — how much is gone, how long is left,

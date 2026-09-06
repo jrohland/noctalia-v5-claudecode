@@ -45,6 +45,71 @@ function M.round(x)
   return math.floor((tonumber(x) or 0) + 0.5)
 end
 
+-- ── plan naming ────────────────────────────────────────────────────────────
+-- The credentials file reports the plan as machine tokens: subscriptionType is
+-- "team", rateLimitTier is "default_claude_max_5x". Neither is meant to be read
+-- by a person, so they are rebuilt into "Claude Team 5x".
+
+-- Words that name a plan, in the form they should be shown.
+local PLAN_WORDS = {
+  free = "Free", pro = "Pro", max = "Max", team = "Team",
+  enterprise = "Enterprise", business = "Business",
+}
+
+local function titleCase(word)
+  -- "5x" and the like are already written the way they should read.
+  if word:match("^%d") then return word end
+  return word:sub(1, 1):upper() .. word:sub(2)
+end
+
+-- "team" + "default_claude_max_5x" → "Claude Team 5x". An unrecognized tier is
+-- title-cased word by word rather than dropped, so a plan we have never seen
+-- still reads as words instead of disappearing.
+function M.planName(subscription, tier)
+  local function clean(v)
+    if type(v) ~= "string" then return nil end
+    v = v:lower()
+    if v == "" or v == "unknown" then return nil end
+    return v
+  end
+
+  subscription, tier = clean(subscription), clean(tier)
+  if not subscription and not tier then return "Claude Code" end
+
+  -- Strip the tier's bookkeeping prefixes: "default_", a "t1_"-style rank, and
+  -- the vendor name we are about to put back at the front anyway.
+  local rest = tier or ""
+  rest = rest:gsub("^default_", ""):gsub("^t%d+_", ""):gsub("^claude_", "")
+
+  local words, multiplier, family = {}, nil, nil
+  for word in rest:gmatch("[^_]+") do
+    if word:match("^%d+x$") then
+      multiplier = word
+    else
+      if PLAN_WORDS[word] and not family then family = word end
+      table.insert(words, word)
+    end
+  end
+
+  -- The subscription is the plan the account is actually on; the tier's own
+  -- family word is the fallback when it says nothing useful.
+  local plan = PLAN_WORDS[subscription or ""] or (family and PLAN_WORDS[family])
+  if not plan then
+    if #words > 0 then
+      local shown = {}
+      for _, w in words do table.insert(shown, titleCase(w)) end
+      plan = table.concat(shown, " ")
+    elseif subscription then
+      plan = titleCase(subscription)
+    end
+  end
+
+  local parts = { "Claude" }
+  if plan and plan ~= "" then table.insert(parts, plan) end
+  if multiplier then table.insert(parts, multiplier) end
+  return table.concat(parts, " ")
+end
+
 -- ── time (reset timestamps are ISO-8601 UTC) ───────────────────────────────
 
 -- Seconds the local clock is ahead of UTC (DST-aware for the current instant).

@@ -57,6 +57,10 @@ Both are `[widget.actions]` defaults, so they are re-bindable in the bar's gestu
 settings; the script's own `onClick` / `onRightClick` do the same thing if you remove a
 binding.
 
+The panel header names the plan the account is on in words — "Claude Team 5x", rebuilt
+from the machine tokens the credentials file actually stores (`team`,
+`default_claude_max_5x`). The same name heads the tooltip.
+
 The panel opens attached under the pill and carries the full detail: a card for every
 rate window the plan reports, each with a reset countdown, the wall-clock time it lands
 on, and a pacing bar, token consumption for today, this

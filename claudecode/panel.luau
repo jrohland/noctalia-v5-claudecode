@@ -45,16 +45,14 @@ end
 -- ── header ──────────────────────────────────────────────────────────────────
 
 local function header(pd)
-  local sub = pd and pd.subscription or nil
-  if sub == nil or sub == "" then sub = "unknown" end
-  local tier = (pd and pd.tier ~= nil and pd.tier ~= "" and pd.tier ~= "unknown") and ` · {pd.tier}` or ""
+  local plan = pd and shared.planName(pd.subscription, pd.tier) or ""
   local loading = type(status) == "table" and status.state == "loading"
 
   return ui.row({ gap = 10, align = "center" }, {
     ui.glyph({ name = "robot", size = 22, color = ACCENT }),
     ui.column({ gap = 0, flexGrow = 1 }, {
       ui.label({ text = noctalia.tr("title"), fontSize = 16, fontWeight = "bold" }),
-      muted(pd and `{sub}{tier}` or "", 11),
+      muted(plan, 11),
     }),
     ui.button({
       glyph = loading and "loader-2" or "refresh",
