@@ -17,7 +17,7 @@
 local shared = require("./shared.luau")
 local ring = require("./ring.luau")
 local formatTokens, formatCost = shared.formatTokens, shared.formatCost
-local pace, paceLabel, paceColor = shared.pace, shared.paceLabel, shared.paceColor
+local pace, paceColor = shared.pace, shared.paceColor
 local round = shared.round
 
 local PANEL_ID = "jrohland/claudecode:popout"
@@ -137,16 +137,17 @@ local function render()
   -- One row per window the API enforces, including a model-scoped week when the
   -- plan has one. "12%  ·  3h 42m (19:30)" — how much is gone, how long is left,
   -- and the clock time it comes back.
+  -- "15%  ·  3h 28m (19:29)". The pace phrase is deliberately not here: the value
+  -- column is narrow and it was the part being truncated away. Pace still reaches
+  -- the reader through the pill's own color and its ↑ cue, and in full in the panel.
   for _, w in shared.windows(usage) do
-    local parts = { `{round(w.percent)}%` }
-    local countdown = shared.formatCountdown(w.resetIso)
+    local value = `{round(w.percent)}%`
+    local countdown = shared.formatCountdownShort(w.resetIso)
     if countdown then
       local clock = shared.formatResetClock(w.resetIso)
-      table.insert(parts, clock and `{countdown} ({clock})` or countdown)
+      value = clock and `{value}  ·  {countdown} ({clock})` or `{value}  ·  {countdown}`
     end
-    local pl = paceLabel(w.pace)
-    if pl then table.insert(parts, pl) end
-    row(w.label, table.concat(parts, "  ·  "))
+    row(w.label, value)
   end
 
   row(noctalia.tr("today"), `{formatTokens(todayTokens)}  ({formatCost(usage.today_cost, rate)})`)
