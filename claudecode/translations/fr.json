@@ -19,6 +19,13 @@
   "all": "Tout",
   "profile": "Profil",
   "days": "Lu,Ma,Me,Je,Ve,Sa,Di",
+  "refresh": "Actualiser",
+  "refreshing": "Actualisation…",
+  "settings_tooltip": "Réglages du plugin",
+  "close": "Fermer",
+  "loading": "Utilisation Claude Code — chargement…",
+  "unavailable": "Utilisation Claude Code indisponible",
+  "day_detail": "{day} · {tokens} tokens · {cost}",
   "pace": {
     "under": "sous le rythme",
     "over": "au-dessus du rythme",

@@ -1,16 +1,23 @@
--- Claude Code Usage — desktop widget (the rich detail panel).
+--!nonstrict
+-- Claude Code Usage — desktop widget (the detail panel pinned to the desktop).
 --
--- Noctalia bar widgets can't open a popout, so the DMS plugin's detail popout
--- lives here as a desktop tile built from the declarative ui.* vocabulary
--- (cf. timer.luau). It mirrors the service's published "usage" state; the bar
--- widget and this panel show the same data.
+-- The same content as the click panel (panel.luau), built from the declarative
+-- ui.* vocabulary as a desktop tile (cf. timer.luau). It mirrors the service's
+-- published "usage" state; the bar widget, the panel and this tile show the same
+-- data, and it follows the profile chosen in the panel (shared "selected_profile").
 --
 -- Sections (ported from ClaudeCodeUsageWidget.qml): rate windows, token
 -- consumption, daily activity, per-model breakdown, all-time, profile selector.
--- Circular rings become linear ui.progress bars; per-bar hover tooltips are
--- dropped (ui.* has no hover); profile tabs/dropdown become a cycle button.
+-- Circular rings become linear bars with a time-tick; per-bar hover tooltips live
+-- in the click panel (desktop widgets have no tooltips); profile tabs/dropdown
+-- become a cycle button.
 
-local accent = desktopWidget.getConfig("accent")
+local shared = require("./shared.luau")
+local formatTokens, formatCost, shortModelName = shared.formatTokens, shared.formatCost, shared.shortModelName
+local formatCountdown, pace = shared.formatCountdown, shared.pace
+local FIVE_HOUR_SECS, SEVEN_DAY_SECS = shared.FIVE_HOUR_SECS, shared.SEVEN_DAY_SECS
+
+local accent = noctalia.getConfig("accent")
 if type(accent) ~= "string" or accent == "" then accent = "primary" end
 
 -- ui.* needs explicit widths (flex children otherwise collapse — progress bars to
@@ -23,113 +30,13 @@ local usage = noctalia.state.get("usage")
 local status = noctalia.state.get("status")
 local selected = noctalia.state.get("selected_profile") or "all"
 
--- ── formatters (ported from the QML) ───────────────────────────────────────
-
-local function formatTokens(n)
-  n = tonumber(n) or 0
-  if n >= 1000000000 then return string.format("%.1fB", n / 1000000000) end
-  if n >= 1000000 then return string.format("%.1fM", n / 1000000) end
-  if n >= 1000 then return string.format("%.1fK", n / 1000) end
-  return tostring(math.floor(n + 0.5))
-end
-
-local function currencyMode()
-  local c = noctalia.getConfig("currency")
-  if c == "usd" or c == "eur" then return c end
-  return noctalia.tr("currency.auto_default")
-end
-
-local function formatCost(usd, rate)
-  usd = tonumber(usd) or 0
-  rate = tonumber(rate) or 0
-  local useEur = currencyMode() == "eur" and rate > 0
-  local n = useEur and usd * rate or usd
-  local sym = useEur and "" or "$"
-  local suffix = useEur and " €" or ""
-  if n >= 1000 then return `{sym}{string.format("%.1f", n / 1000)}K{suffix}` end
-  if n >= 100 then return `{sym}{math.floor(n + 0.5)}{suffix}` end
-  if n >= 10 then return `{sym}{string.format("%.1f", n)}{suffix}` end
-  return `{sym}{string.format("%.2f", n)}{suffix}`
-end
-
-
-local function shortModelName(name)
-  if type(name) ~= "string" or #name == 0 then return tostring(name) end
-  return name:sub(1, 1):upper() .. name:sub(2)
-end
-
--- ── countdown (reset timestamps are ISO-8601 UTC) ──────────────────────────
-
--- Seconds the local clock is ahead of UTC (DST-aware for the current instant).
-local function tzOffset()
-  local now = os.time()
-  return os.difftime(now, os.time(os.date("!*t", now)))
-end
-
--- Parse an ISO-8601 UTC string to a real epoch, or nil.
-local function resetEpoch(iso)
-  if type(iso) ~= "string" or iso == "" then return nil end
-  local y, mo, d, h, mi, s = iso:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-  if not y then return nil end
-  local asLocal = os.time({
-    year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-    hour = tonumber(h), min = tonumber(mi), sec = tonumber(s),
-  })
-  if not asLocal then return nil end
-  return asLocal + tzOffset()
-end
-
-local function formatCountdown(iso)
-  local epoch = resetEpoch(iso)
-  if not epoch then return nil end
-  local secs = epoch - os.time()
-  if secs <= 0 then return noctalia.tr("resetting") end
-  local d = secs // 86400
-  local h = (secs % 86400) // 3600
-  local m = (secs % 3600) // 60
-  if d > 0 then return `{d}d {h}h {m}m` end
-  if h > 0 then return `{h}h {m}m` end
-  return `{m}m`
-end
-
--- ── pacing (usage vs. time elapsed through the window) ─────────────────────
--- Are we burning quota faster than the clock? Windows are treated as fixed-length
--- and elapsed time is derived from the reset timestamp — an approximation of
--- Anthropic's rolling limits (same approach as YapCap), good enough as a cue.
-local FIVE_HOUR_SECS = 5 * 3600
-local SEVEN_DAY_SECS = 7 * 86400
-local PACE_MARGIN = 5 -- % points around parity that still read as "on pace"
-
--- Returns { timeFrac, delta, status } or nil when pace can't be determined.
---   status: "over_quota" | "over" | "under" | "on"
-local function pace(util, resetIso, durationSecs)
-  util = tonumber(util) or 0
-  local epoch = resetEpoch(resetIso)
-  if not epoch then
-    if util >= 100 then return { timeFrac = 1, delta = util, status = "over_quota" } end
-    return nil
-  end
-  local remaining = epoch - os.time()
-  local timeFrac = (durationSecs - remaining) / durationSecs
-  if timeFrac < 0 then timeFrac = 0 elseif timeFrac > 1 then timeFrac = 1 end
-  local delta = util - timeFrac * 100
-  local status
-  if util >= 100 then status = "over_quota"
-  elseif delta >= PACE_MARGIN then status = "over"
-  elseif delta <= -PACE_MARGIN then status = "under"
-  else status = "on" end
-  return { timeFrac = timeFrac, delta = delta, status = status }
-end
-
 local function paceColor(status)
-  if status == "over_quota" then return "error" end
-  if status == "over" then return "warning" end
-  return accent -- on / under: keep the bar reading as "filled"
+  return shared.paceColor(status, accent) -- on / under: keep the bar reading as "filled"
 end
 
 -- A usage bar with an inlined time-tick. ui.* has no overlay, so we build it from
 -- segments: fill / track, with a 2px tick sliver at the time-elapsed position.
-local TICK_TRACK = "surface_container_highest"
+local TICK_TRACK = "on_surface/0.14"
 local TICK_MARK = "on_surface"
 local BAR_H = 8
 
@@ -167,46 +74,6 @@ local function paceBar(util, timeFrac, fill)
   return ui.row({ width = W, height = BAR_H, radius = 4 }, parts)
 end
 
--- ── selected-profile projection ────────────────────────────────────────────
-
-local function findProfile(name)
-  if type(usage) ~= "table" or type(usage.profile_data) ~= "table" then return nil end
-  for _, p in usage.profile_data do
-    if type(p) == "table" and p.name == name then return p end
-  end
-  return nil
-end
-
--- Unify the "all" aggregate (top-level fields) and a single profile object into
--- one shape the renderer can read.
-local function projection()
-  if type(usage) ~= "table" then return nil end
-  if selected == "all" then
-    return {
-      subscription = usage.subscription_type, tier = usage.rate_limit_tier,
-      five_hour_util = usage.five_hour_util, seven_day_util = usage.seven_day_util,
-      five_hour_reset = usage.five_hour_reset, seven_day_reset = usage.seven_day_reset,
-      week_tokens = usage.week_tokens, month_tokens = usage.month_tokens,
-      week_messages = usage.week_messages, week_sessions = usage.week_sessions,
-      today_cost = usage.today_cost, week_cost = usage.week_cost, month_cost = usage.month_cost,
-      daily = usage.daily, daily_costs = usage.daily_costs, week_models = usage.week_models,
-      is_all = true,
-    }
-  end
-  local p = findProfile(selected)
-  if not p then return nil end
-  return {
-    subscription = p.subscription, tier = p.tier,
-    five_hour_util = p.five_hour_util, seven_day_util = p.seven_day_util,
-    five_hour_reset = p.five_hour_reset, seven_day_reset = p.seven_day_reset,
-    week_tokens = p.week_tokens, month_tokens = p.month_tokens,
-    week_messages = p.week_messages, week_sessions = p.week_sessions,
-    today_cost = p.today_cost, week_cost = p.week_cost, month_cost = p.month_cost,
-    daily = p.daily, daily_costs = p.daily_costs, week_models = p.week_models,
-    is_all = false,
-  }
-end
-
 -- ── small ui.* helpers ──────────────────────────────────────────────────────
 
 local function muted(text, size)
@@ -215,7 +82,7 @@ end
 
 local function card(children)
   return ui.column({
-    gap = 8, padding = PAD, fill = "surface_container_high", radius = 12,
+    gap = 8, padding = PAD, fill = "surface_variant/0.45", radius = 12,
     width = PANEL_W,
   }, children)
 end
@@ -225,28 +92,19 @@ end
 local function rateCard(title, util, resetIso, durationSecs)
   util = tonumber(util) or 0
   local p = pace(util, resetIso, durationSecs)
-  local status = p and p.status or "unknown"
-  local fill = (status == "unknown") and accent or paceColor(status)
+  local status = p.status
+  local fill = paceColor(status)
 
   local rows = {
     ui.row({ width = CONTENT_W, justify = "space_between" }, {
       ui.label({ text = title, fontSize = 14, fontWeight = "medium" }),
       ui.label({ text = `{math.floor(util + 0.5)}% {noctalia.tr("used")}`, fontSize = 14, color = fill }),
     }),
-    paceBar(util, p and p.timeFrac or nil, fill),
+    paceBar(util, p.timeFrac, fill),
   }
 
   local cd = formatCountdown(resetIso)
-  local caption
-  if status == "over_quota" then
-    caption = noctalia.tr("pace.over_quota")
-  elseif status == "over" then
-    caption = `{math.floor(p.delta + 0.5)}% {noctalia.tr("pace.over")}`
-  elseif status == "under" then
-    caption = `{math.floor(-p.delta + 0.5)}% {noctalia.tr("pace.under")}`
-  elseif status == "on" then
-    caption = noctalia.tr("pace.on")
-  end
+  local caption = shared.paceLabel(p)
   if cd then
     caption = caption and `{caption} · {noctalia.tr("resets_in")} {cd}` or `{noctalia.tr("resets_in")} {cd}`
   end
@@ -273,8 +131,7 @@ local function dailyChart(daily)
   local labels = {}
   for w in (noctalia.tr("days")):gmatch("[^,]+") do table.insert(labels, w) end
 
-  local t = os.date("*t")
-  local todayIdx = (t.wday == 1) and 7 or (t.wday - 1) -- 1-based, Mon=1
+  local todayIdx = shared.todayIndex()
   local colW = math.floor((CONTENT_W - 6 * 6) / 7) -- six 6px gaps
   local barH = 64
 
@@ -287,7 +144,7 @@ local function dailyChart(daily)
       ui.column({ width = colW, height = barH, justify = "end", align = "center" }, {
         ui.box({
           width = math.min(20, colW), height = h, radius = 3,
-          fill = isToday and accent or "surface_container_highest",
+          fill = isToday and accent or "on_surface/0.14",
         }),
       }),
       ui.label({
@@ -305,13 +162,8 @@ end
 
 -- Per-model breakdown: name + tokens over a share bar, sorted desc.
 local function modelsCard(weekModels, weekTokens)
-  if type(weekModels) ~= "table" then return nil end
-  local list = {}
-  for name, tok in weekModels do
-    table.insert(list, { name = name, tokens = tonumber(tok) or 0 })
-  end
+  local list = shared.modelList(weekModels)
   if #list == 0 then return nil end
-  table.sort(list, function(a, b) return a.tokens > b.tokens end)
 
   weekTokens = tonumber(weekTokens) or 0
   local rows = { ui.label({ text = noctalia.tr("models_this_week"), fontSize = 14, fontWeight = "medium" }) }
@@ -335,18 +187,18 @@ local function render()
     desktopWidget.render(card({
       ui.row({ gap = 8, align = "center" }, {
         ui.glyph({ name = "robot-off", size = 20, color = "on_surface_variant" }),
-        ui.label({ text = status.message ~= "" and status.message or "Claude Code Usage unavailable" }),
+        ui.label({ text = status.message ~= "" and status.message or noctalia.tr("unavailable") }),
       }),
     }))
     return
   end
 
-  local pd = projection()
+  local pd = shared.projection(usage, selected)
   if not pd then
     desktopWidget.render(card({
       ui.row({ gap = 8, align = "center" }, {
         ui.glyph({ name = "robot", size = 20, color = "on_surface_variant" }),
-        ui.label({ text = "Claude Code Usage — loading…", color = "on_surface_variant" }),
+        ui.label({ text = noctalia.tr("loading"), color = "on_surface_variant" }),
       }),
     }))
     return
@@ -383,9 +235,7 @@ local function render()
   table.insert(sections, rateCard(noctalia.tr("seven_day"), pd.seven_day_util, pd.seven_day_reset, SEVEN_DAY_SECS))
 
   -- Token consumption: Today / Week / Month.
-  local t = os.date("*t")
-  local todayIdx = (t.wday == 1) and 7 or (t.wday - 1)
-  local todayTokens = (type(pd.daily) == "table" and pd.daily[todayIdx]) or 0
+  local todayTokens = (type(pd.daily) == "table" and pd.daily[shared.todayIndex()]) or 0
   table.insert(sections, card({
     ui.label({ text = noctalia.tr("token_consumption"), fontSize = 14, fontWeight = "medium" }),
     ui.row({ width = CONTENT_W, gap = 8, justify = "space_between" }, {
@@ -441,9 +291,7 @@ end)
 
 -- Advance through ["all", <profiles…>] and republish so other instances follow.
 function cycleProfile()
-  local profiles = (type(usage) == "table" and type(usage.profiles) == "table") and usage.profiles or {}
-  local order = { "all" }
-  for _, name in profiles do table.insert(order, name) end
+  local order = shared.profileOrder(usage)
 
   local idx = 1
   for i, name in order do

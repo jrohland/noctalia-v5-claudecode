@@ -10,18 +10,18 @@ plugins, and each plugin lives in its own subdirectory (here, `claudecode/`).
 
 ## Screenshots
 
-**Bar pill** (left-click opens the launcher breakdown; hover for a summary):
+**Bar pill** (left-click opens the usage panel; hover for a summary tooltip):
 
-<img src="assets/bar-pill.png" alt="Bar pill with tooltip" width="240">
+<img src="assets/bar-pill.png" alt="Bar pill" width="170">
 
 <table>
   <tr>
     <td valign="top" width="50%">
-      <b>Launcher breakdown</b> — type <code>/cc</code> or left-click the pill<br><br>
-      <img src="assets/launcher.png" alt="Launcher usage breakdown">
+      <b>Usage panel</b> — left-click the pill<br><br>
+      <img src="assets/panel.png" alt="Usage panel attached to the bar">
     </td>
     <td valign="top" width="50%">
-      <b>Desktop panel</b><br><br>
+      <b>Desktop widget</b><br><br>
       <img src="assets/desktop-panel.png" alt="Desktop usage panel">
     </td>
   </tr>
@@ -37,17 +37,17 @@ noctalia msg plugins enable jrohland/claudecode
 ```
 
 Then add the **Claude Code Usage** bar widget from the Add-widget picker. **Left-click** the
-pill to open the usage breakdown in the launcher (or type `/cc`); **right-click** to refresh.
-For the full visual panel, add the desktop widget from the desktop-widget editor
-(`noctalia msg desktop-widgets-edit`). Configure the refresh interval and currency under
-Settings → Plugins.
+pill to open the usage panel under it (also `noctalia msg panel-toggle jrohland/claudecode:popout`);
+**right-click** to refresh. For an always-visible copy, add the desktop widget from the
+desktop-widget editor (`noctalia msg desktop-widgets-edit`). Configure the refresh interval and
+currency under Settings → Plugins (or the panel's settings button).
 
-Update later with `noctalia msg plugins update`, or remove the source with
+Update later with `noctalia msg plugins update jrohland`, or remove the source with
 `noctalia msg plugins source remove jrohland`.
 
 ## Requirements
 
-- Noctalia ≥ 5.0.0
+- Noctalia ≥ 5.0.1 (plugin API 22)
 - `jq`, `curl`
 - An authenticated Claude Code install (`~/.claude/.credentials.json`)
 

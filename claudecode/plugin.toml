@@ -3,15 +3,16 @@
 # Port of the Dank Material Shell "Claude Code Usage" plugin. The data work lives in
 # get-claude-usage (a Bash script run with --json); a headless [[service]] runs it on
 # an interval and publishes the parsed result to the plugin's shared state. The bar
-# [[widget]] and the [[desktop_widget]] are thin presentation clients that watch that
-# state — so usage is fetched once and mirrored everywhere.
+# [[widget]], the click [[panel]] and the [[desktop_widget]] are thin presentation
+# clients that watch that state — usage is fetched once and mirrored everywhere.
+# Formatting / pacing helpers shared by the clients live in shared.luau (require).
 #
 # Requires: jq, curl, and an authenticated Claude Code install (~/.claude/.credentials.json).
 
 id = "jrohland/claudecode"
 name = "Claude Code Usage"
-version = "2.3.0"
-min_noctalia = "5.0.0"
+version = "3.0.0"
+plugin_api = 22
 author = "Nicolas Bellamy (Noctalia port by jrohland)"
 license = "MIT"
 icon = "robot"
@@ -46,11 +47,17 @@ options = [
 id = "service"
 entry = "service.luau"
 
-# Bar tile: a pill showing the chosen rate-window utilization, colored by threshold,
-# with a summary tooltip. Left click forces an immediate refresh.
+# Bar tile: a pill showing the chosen rate-window utilization, colored by pace,
+# with a summary tooltip. Left click opens the panel; right click refreshes.
 [[widget]]
 id = "pill"
 entry = "widget.luau"
+
+  # Gesture defaults (user-editable in the bar's gesture settings). The script's
+  # onClick / onRightClick callbacks do the same thing when a binding is removed.
+  [widget.actions]
+  left = "panel-toggle jrohland/claudecode:popout"
+  right = "plugin jrohland/claudecode:service all refresh"
 
   [[widget.setting]]
   key = "pill_metric"
@@ -70,17 +77,21 @@ entry = "widget.luau"
   label_key = "settings.show_glyph.label"
   default = true
 
-# Launcher provider: a usage breakdown in the launcher overlay (appears over the
-# current workspace). Type `/cc`, or left-click the bar widget to open it pre-filled.
-[[launcher_provider]]
-id = "breakdown"
-entry = "launcher.luau"
-prefix = "/cc"
-glyph = "robot"
-include_in_global_search = false
+# Click panel: the DMS popout — rate windows, token columns, daily activity with
+# hover detail, per-model breakdown, all-time stats, profile selector. Attached to
+# the bar pill that opened it. (Id "popout": entry ids are unique across entry
+# types and the desktop tile already owns "panel".)
+[[panel]]
+id = "popout"
+entry = "panel.luau"
+width = 380
+height = 640
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-# Desktop tile: the rich detail panel (rate windows, token columns, daily activity,
-# per-model breakdown, all-time stats, profile selector).
+# Desktop tile: the same detail panel pinned to the desktop.
 [[desktop_widget]]
 id = "panel"
 entry = "desktop.luau"

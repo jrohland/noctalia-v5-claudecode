@@ -19,6 +19,13 @@
   "all": "All",
   "profile": "Profile",
   "days": "Mo,Tu,We,Th,Fr,Sa,Su",
+  "refresh": "Refresh",
+  "refreshing": "Refreshing…",
+  "settings_tooltip": "Plugin settings",
+  "close": "Close",
+  "loading": "Claude Code Usage — loading…",
+  "unavailable": "Claude Code Usage unavailable",
+  "day_detail": "{day} · {tokens} tokens · {cost}",
   "pace": {
     "under": "under pace",
     "over": "over pace",
