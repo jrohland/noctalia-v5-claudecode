@@ -10,14 +10,16 @@ plugins, and each plugin lives in its own subdirectory (here, `claudecode/`).
 
 ## Screenshots
 
-**Bar pill** (left-click opens the usage panel; hover for a summary tooltip):
+**Bar pill** — the ring style, showing the 5-hour and 7-day windows. Left-click opens
+the usage panel; hover for a summary tooltip; `pill_extras` can add the time left and
+the pace beside the percentages:
 
 <img src="assets/bar-pill.png" alt="Bar pill" width="170">
 
 <table>
   <tr>
     <td valign="top" width="50%">
-      <b>Usage panel</b> — left-click the pill<br><br>
+      <b>Usage panel</b> — a card per rate window, including the model-scoped one<br><br>
       <img src="assets/panel.png" alt="Usage panel attached to the bar">
     </td>
     <td valign="top" width="50%">
