@@ -186,9 +186,11 @@ so they need no network and no credentials.
 
 This plugin was built with AI assistance, and not in a small way: the port from Dank
 Material Shell and everything since — the rate-window handling, the generated bar ring,
-the two panels, the Bash data engine — were written with Claude Code, with the author
-directing the work, testing each change against a running shell, and reviewing what
-shipped.
+the two panels, the Bash data engine — were written with Claude Code. The author
+directed the work and verified it by running it: every surface exercised on a live
+shell, every setting toggled, the data engine's suite run. The author has not read all
+~3,400 lines line by line, and would rather say so than imply an audit that did not
+happen.
 
 It is written to be read. Plain Luau and Bash, nothing minified, obfuscated or
 machine-emitted; a comment on every non-obvious decision saying why it is that way
