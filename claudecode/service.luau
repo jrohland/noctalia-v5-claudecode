@@ -9,7 +9,7 @@
 --   noctalia.state.set("status", {...})     -- loading / ready / error + availability
 --
 -- Drive a manual refresh from the shell:
---   noctalia msg plugin titeya/claudecode:service all refresh
+--   noctalia msg plugin jrohland/claudecode:service all refresh
 
 local scriptPath = `{noctalia.pluginDir()}/get-claude-usage`
 local depsOk = noctalia.commandExists("jq") and noctalia.commandExists("curl")

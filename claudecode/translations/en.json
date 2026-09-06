@@ -58,8 +58,32 @@
         "both": "Both (5h · 7d)"
       }
     },
+    "pill_style": {
+      "label": "Bar style",
+      "description": "How the bar pill draws the utilization. The ring tracks the 5-hour window when the metric is “Both”.",
+      "options": {
+        "glyph_text": "Glyph + percentage",
+        "ring": "Ring only",
+        "ring_text": "Ring + percentage"
+      }
+    },
+    "ring_size": {
+      "label": "Ring size",
+      "description": "Ring diameter in pixels. Keep it under the bar height."
+    },
+    "ring_thickness": {
+      "label": "Ring thickness"
+    },
+    "ring_color": {
+      "label": "Ring fallback color",
+      "description": "Used only when the palette cannot be read, as with built-in themes."
+    },
+    "ring_track_color": {
+      "label": "Ring track fallback color"
+    },
     "show_glyph": {
-      "label": "Show glyph"
+      "label": "Show glyph",
+      "description": "Only applies to the glyph + percentage style."
     },
     "accent": {
       "label": "Accent color",

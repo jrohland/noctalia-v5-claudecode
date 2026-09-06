@@ -47,7 +47,7 @@ Update later with `noctalia msg plugins update jrohland`, or remove the source w
 
 ## Requirements
 
-- Noctalia ≥ 5.0.1 (plugin API 22)
+- A Noctalia build at plugin API level 26 or newer
 - `jq`, `curl`
 - An authenticated Claude Code install (`~/.claude/.credentials.json`)
 

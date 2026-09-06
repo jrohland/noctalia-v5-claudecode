@@ -1,6 +1,6 @@
 --!nonstrict
 -- Claude Code Usage — helpers shared by the bar widget, the panel and the desktop
--- widget (require("./shared.luau"), plugin_api 22). Entries run in isolated VMs, so
+-- widget (require("./shared.luau"), plugin_api 26). Entries run in isolated VMs, so
 -- this module is the one copy of the formatters, the countdown math and the pacing
 -- model; the three surfaces cannot drift apart on how a number reads.
 
