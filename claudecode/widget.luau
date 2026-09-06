@@ -135,11 +135,15 @@ local function render()
   row(noctalia.tr("plan"), shared.planName(usage.subscription_type, usage.rate_limit_tier))
 
   -- One row per window the API enforces, including a model-scoped week when the
-  -- plan has one. "12%  ·  3h 42m (19:30)" — how much is gone, how long is left,
+  -- plan has one: "16%  ·  3h 26m (19:29)" — how much is gone, how long is left,
   -- and the clock time it comes back.
-  -- "15%  ·  3h 28m (19:29)". The pace phrase is deliberately not here: the value
-  -- column is narrow and it was the part being truncated away. Pace still reaches
-  -- the reader through the pill's own color and its ↑ cue, and in full in the panel.
+  --
+  -- Everything here is kept to one width on purpose. The shell right-aligns the
+  -- value cell, so a row that is shorter than its neighbours pushes its
+  -- percentage out of line with theirs. Two things were cut to hold that width:
+  -- the pace phrase, which the column was truncating anyway and which the pill's
+  -- own color and the panel both still carry, and the weekday in front of the
+  -- reset time, which the countdown beside it already tells you.
   for _, w in shared.windows(usage) do
     local value = `{round(w.percent)}%`
     local countdown = shared.formatCountdownShort(w.resetIso)

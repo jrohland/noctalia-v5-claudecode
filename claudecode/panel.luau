@@ -156,7 +156,7 @@ local function rateCard(w)
   local caption = paceLabel(p)
   local cd = formatCountdown(w.resetIso)
   if cd then
-    local clock = shared.formatResetClock(w.resetIso)
+    local clock = shared.formatResetClock(w.resetIso, true)
     local resets = `{noctalia.tr("resets_in")} {cd}`
     if clock then resets = `{resets} ({clock})` end
     caption = caption and `{caption} · {resets}` or resets

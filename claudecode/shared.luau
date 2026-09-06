@@ -284,9 +284,12 @@ function M.windows(proj)
   return rows
 end
 
--- The wall-clock time a window resets at, in the shell's own time format:
--- "19:30" inside a day, "Sat 15:00" further out, nil when the stamp is unusable.
-function M.formatResetClock(iso)
+-- The wall-clock time a window resets at, in the shell's own time format.
+-- `withDay` prefixes the weekday for a reset more than a day out ("Sat 15:00");
+-- without it the time stands alone, which is what a narrow column wants — the
+-- countdown beside it already says how many days away that is. nil when the
+-- stamp is unusable.
+function M.formatResetClock(iso, withDay)
   local epoch = M.resetEpoch(iso)
   if not epoch then return nil end
   -- noctalia.timeFormat() is "{:%H:%M}" or "{:%I:%M %p}"; take the strftime part
@@ -297,7 +300,7 @@ function M.formatResetClock(iso)
     local inner = shellFmt:match("{:(.-)}")
     if inner and inner ~= "" then fmt = inner end
   end
-  if epoch - os.time() >= 86400 then return os.date(`%a {fmt}`, epoch) end
+  if withDay and epoch - os.time() >= 86400 then return os.date(`%a {fmt}`, epoch) end
   return os.date(fmt, epoch)
 end
 
