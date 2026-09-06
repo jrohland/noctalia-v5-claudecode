@@ -127,14 +127,18 @@ end
 -- Usage bar over a thin time-elapsed bar: a fill longer than the clock bar is
 -- quota burning ahead of time. Panels stretch children, so no fixed widths.
 
-local function rateCard(title, util, resetIso, durationSecs)
-  util = tonumber(util) or 0
-  local p = pace(util, resetIso, durationSecs)
-  local fill = paceColor(p.status, ACCENT)
+-- `w` is one row of shared.windows(): the 5-hour session, the plan-wide week, or
+-- a week scoped to a single model. Its `status` already folds the vendor's own
+-- severity into the pace reading, so a window Anthropic calls high never draws
+-- calm here.
+local function rateCard(w)
+  local util = w.percent
+  local p = w.pace
+  local fill = paceColor(w.status, ACCENT)
 
   local rows = {
     ui.row({ align = "center", justify = "space_between" }, {
-      heading(title),
+      heading(w.label),
       ui.label({ text = `{round(util)}% {noctalia.tr("used")}`, fontSize = 14, color = fill }),
     }),
     ui.progress({
@@ -149,10 +153,15 @@ local function rateCard(title, util, resetIso, durationSecs)
     }))
   end
 
+  -- "9% under pace · Resets in 3h 59m (19:30)". The clock time saves the reader
+  -- doing the arithmetic when the window lands hours or days out.
   local caption = paceLabel(p)
-  local cd = formatCountdown(resetIso)
+  local cd = formatCountdown(w.resetIso)
   if cd then
-    caption = caption and `{caption} · {noctalia.tr("resets_in")} {cd}` or `{noctalia.tr("resets_in")} {cd}`
+    local clock = shared.formatResetClock(w.resetIso)
+    local resets = `{noctalia.tr("resets_in")} {cd}`
+    if clock then resets = `{resets} ({clock})` end
+    caption = caption and `{caption} · {resets}` or resets
   end
   if caption then table.insert(rows, muted(caption, 11)) end
   return card(rows)
@@ -326,12 +335,16 @@ function render()
   local selector = profileSelector()
   if selector then table.insert(top, selector) end
 
-  local cards = {
-    rateCard(noctalia.tr("five_hour"), pd.five_hour_util, pd.five_hour_reset, shared.FIVE_HOUR_SECS),
-    rateCard(noctalia.tr("seven_day"), pd.seven_day_util, pd.seven_day_reset, shared.SEVEN_DAY_SECS),
+  local cards = {}
+  for _, w in shared.windows(pd) do
+    table.insert(cards, rateCard(w))
+  end
+  for _, c in {
     tokensCard(pd, rate, todayTokens),
     dailyChart(pd.daily, pd.daily_costs, rate),
-  }
+  } do
+    table.insert(cards, c)
+  end
   local models = modelsCard(pd.week_models, pd.week_tokens)
   if models then table.insert(cards, models) end
   if pd.is_all then

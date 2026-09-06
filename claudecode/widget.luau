@@ -122,24 +122,40 @@ local function render()
   end
   barWidget.setColor(color)
 
-  -- Summary tooltip (the panel has the full picture).
+  -- Summary tooltip. Key/value rows rather than one newline-joined string: the
+  -- shell lays those out as a two-column grid, so the labels and the numbers
+  -- line up instead of drifting with the width of each line.
   local rate = usage.usd_eur_rate
   local sub = usage.subscription_type
   if sub == nil or sub == "" or sub == "unknown" then sub = "Claude Code" end
+  local tier = usage.rate_limit_tier
   local todayTokens = (type(usage.daily) == "table" and usage.daily[shared.todayIndex()]) or 0
 
-  local function rateLine(label, pct, p)
-    local pl = paceLabel(p)
-    if pl then return `{label}: {round(pct)}%  ·  {pl}` end
-    return `{label}: {round(pct)}%`
+  local rows = {}
+  local function row(key, value) table.insert(rows, { key = key, value = value }) end
+
+  -- Header: the plan on the right, so it reads as this account's identity.
+  row(sub, (tier ~= nil and tier ~= "" and tier ~= "unknown") and tier or "")
+
+  -- One row per window the API enforces, including a model-scoped week when the
+  -- plan has one. "12%  ·  3h 42m (19:30)" — how much is gone, how long is left,
+  -- and the clock time it comes back.
+  for _, w in shared.windows(usage) do
+    local parts = { `{round(w.percent)}%` }
+    local countdown = shared.formatCountdown(w.resetIso)
+    if countdown then
+      local clock = shared.formatResetClock(w.resetIso)
+      table.insert(parts, clock and `{countdown} ({clock})` or countdown)
+    end
+    local pl = paceLabel(w.pace)
+    if pl then table.insert(parts, pl) end
+    row(w.label, table.concat(parts, "  ·  "))
   end
-  barWidget.setTooltip(table.concat({
-    sub,
-    rateLine("5h", five, pFive),
-    rateLine("7d", seven, pSeven),
-    `{noctalia.tr("today")}: {formatTokens(todayTokens)}  ({formatCost(usage.today_cost, rate)})`,
-    `{noctalia.tr("week")}: {formatTokens(usage.week_tokens)}  ({formatCost(usage.week_cost, rate)})`,
-  }, "\n"))
+
+  row(noctalia.tr("today"), `{formatTokens(todayTokens)}  ({formatCost(usage.today_cost, rate)})`)
+  row(noctalia.tr("week"), `{formatTokens(usage.week_tokens)}  ({formatCost(usage.week_cost, rate)})`)
+
+  barWidget.setTooltip(rows)
 end
 
 -- ── wiring ─────────────────────────────────────────────────────────────────

@@ -471,7 +471,16 @@ cat > "$ENV18/.claude/usage-cache.json" << CACHEEOF
     "data": {
         "five_hour": {"utilization": 42, "resets_at": "2099-01-01T00:00:00Z"},
         "seven_day": {"utilization": 15, "resets_at": "2099-01-07T00:00:00Z"},
-        "extra_usage": {"is_enabled": true}
+        "extra_usage": {"is_enabled": true},
+        "limits": [
+            {"kind": "session", "group": "session", "percent": 42, "severity": "normal",
+             "resets_at": "2099-01-01T00:00:00Z", "scope": null, "is_active": true},
+            {"kind": "weekly_all", "group": "weekly", "percent": 15, "severity": "high",
+             "resets_at": "2099-01-07T00:00:00Z", "scope": null, "is_active": false},
+            {"kind": "weekly_scoped", "group": "weekly", "percent": 63, "severity": "critical",
+             "resets_at": "2099-01-07T00:00:00Z",
+             "scope": {"model": {"id": null, "display_name": "Fable"}}, "is_active": false}
+        ]
     }
 }
 CACHEEOF
@@ -483,6 +492,24 @@ SEVEN18=$(echo "$OUTPUT18" | grep "^SEVEN_DAY_UTIL=" | cut -d= -f2)
 assert_eq "$SEVEN18" "15" "Fresh cache: SEVEN_DAY_UTIL from cache"
 EXTRA18=$(echo "$OUTPUT18" | grep "^EXTRA_USAGE_ENABLED=" | cut -d= -f2)
 assert_eq "$EXTRA18" "true" "Fresh cache: EXTRA_USAGE_ENABLED from cache"
+
+# limits[] is the only place a model-scoped window appears, so it is flattened
+# into its own line rather than folded into the two legacy fields.
+LIMITS18=$(echo "$OUTPUT18" | grep "^LIMITS=" | cut -d= -f2-)
+assert_eq "$(echo "$LIMITS18" | jq -r 'length')" "3" "Fresh cache: LIMITS carries every window"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[0].kind')" "session" "Fresh cache: LIMITS[0] is the session window"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[0].percent')" "42" "Fresh cache: LIMITS[0] percent"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[0].is_active')" "true" "Fresh cache: LIMITS[0] is_active"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[1].severity')" "high" "Fresh cache: LIMITS[1] severity passed through"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[2].kind')" "weekly_scoped" "Fresh cache: LIMITS[2] is the scoped window"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[2].model')" "Fable" "Fresh cache: LIMITS[2] carries the scoped model name"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[2].percent')" "63" "Fresh cache: LIMITS[2] percent"
+assert_eq "$(echo "$LIMITS18" | jq -r '.[2].severity')" "critical" "Fresh cache: LIMITS[2] severity"
+
+# A payload with no limits[] at all must still emit a valid empty array: the
+# plugin passes this straight to jq --argjson, which aborts on anything else.
+LIMITS19=$(run_script "$(setup_env "test18b")" | grep "^LIMITS=" | cut -d= -f2-)
+assert_eq "$LIMITS19" "[]" "No API payload: LIMITS degrades to an empty array"
 
 # ============================================================
 echo "=== Test 19: Stats cache parsing ==="

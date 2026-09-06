@@ -7,8 +7,9 @@ tile. Ported from the original [Dank Material Shell plugin](https://github.com/t
 by Nicolas Bellamy.
 
 It reads the usage Anthropic already reports for your own account, using the credentials
-Claude Code holds, so it covers the real subscription rate windows (5-hour and 7-day)
-rather than counting local tokens and guessing. There is no companion CLI to install and
+Claude Code holds, so it covers the real subscription rate windows — the 5-hour
+session, the plan-wide week, and the model-scoped week a plan carries when it has one
+— rather than counting local tokens and guessing. There is no companion CLI to install and
 no second config file to keep in sync: enable the plugin and the numbers are there.
 
 Past the quota percentage it carries what a percentage alone leaves out — token counts
@@ -45,7 +46,9 @@ older id `panel`.
 Add the **Claude Code Usage** widget to a bar from the Add-widget picker. The pill shows
 the chosen rate window as `NN%`, colored by pacing: neutral when you are on or under
 pace, warning when over pace, error when over quota, with an `↑` cue when you are off
-track. Hover it for a summary tooltip.
+track. Hover it for a summary: the plan, then one row per rate window with how much is
+gone, how long is left and the clock time it comes back, then today's and this week's
+tokens with their cost.
 
 - **Left-click** the pill opens the usage panel.
 - **Right-click** forces a refresh.
@@ -54,8 +57,9 @@ Both are `[widget.actions]` defaults, so they are re-bindable in the bar's gestu
 settings; the script's own `onClick` / `onRightClick` do the same thing if you remove a
 binding.
 
-The panel opens attached under the pill and carries the full detail: the 5-hour and
-7-day windows with reset countdowns and pacing bars, token consumption for today, this
+The panel opens attached under the pill and carries the full detail: a card for every
+rate window the plan reports, each with a reset countdown, the wall-clock time it lands
+on, and a pacing bar, token consumption for today, this
 week and this month with estimated cost, a Monday-to-Sunday activity chart you can hover
 for a single day's tokens and cost, a per-model breakdown for the current week, all-time
 session and message stats, and a profile selector that cycles the CCS instances found in
@@ -98,6 +102,17 @@ with the widget.
 
 Under `pill_metric = both` the ring tracks the 5-hour window only — the text still
 carries both numbers. Two concentric rings do not read at bar size.
+
+### Rate windows
+
+The windows come from the API's own list rather than a fixed pair, so a plan gets
+exactly the cards it is actually metered on: `Session (5h)`, `Weekly (7d)`, and on plans
+that scope a week to one model, that model's own row — `Fable (7d)`. A window Anthropic
+adds later appears on its own with no change here.
+
+Each card colors by pace, whether quota is running ahead of the clock. Anthropic also
+labels a window `high` or `critical` when it wants attention, and that outranks the pace
+arithmetic, so a card never reads calm while the vendor is calling it urgent.
 
 ## How it differs from the DMS version
 

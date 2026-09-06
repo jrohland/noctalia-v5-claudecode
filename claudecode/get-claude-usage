@@ -38,6 +38,12 @@ FIVE_HOUR_UTIL=0
 FIVE_HOUR_RESET=""
 SEVEN_DAY_UTIL=0
 SEVEN_DAY_RESET=""
+# Every rate window the API reports, as a compact JSON array. The legacy
+# five_hour / seven_day fields only cover two of them; a plan can also carry a
+# model-scoped weekly window (kind "weekly_scoped", e.g. Fable), and the array
+# is the only place it appears. Kept generic on purpose: a window the API adds
+# later shows up on its own.
+LIMITS_JSON="[]"
 EXTRA_USAGE_ENABLED="false"
 
 WEEK_TOKENS=0
@@ -220,7 +226,7 @@ count_profile_tokens() {
 # --- Per-profile credentials + API usage fetcher ---
 # Usage: fetch_profile_usage <credentials_file> <cache_file> <out_tmpfile>
 # Writes SUBSCRIPTION_TYPE, RATE_LIMIT_TIER, FIVE_HOUR_UTIL, FIVE_HOUR_RESET,
-#        SEVEN_DAY_UTIL, SEVEN_DAY_RESET, EXTRA_USAGE_ENABLED to out_tmpfile
+#        SEVEN_DAY_UTIL, SEVEN_DAY_RESET, EXTRA_USAGE_ENABLED, LIMITS to out_tmpfile
 fetch_profile_usage() {
     local creds_file="$1"
     local cache_file="$2"
@@ -229,10 +235,11 @@ fetch_profile_usage() {
     local sub_type="unknown"
     local tier="unknown"
     local five_util=0 five_reset="" seven_util=0 seven_reset="" extra="false"
+    local limits='[]'
 
     if [ ! -f "$creds_file" ]; then
-        printf 'SUBSCRIPTION_TYPE=%s\nRATE_LIMIT_TIER=%s\nFIVE_HOUR_UTIL=%s\nFIVE_HOUR_RESET=%s\nSEVEN_DAY_UTIL=%s\nSEVEN_DAY_RESET=%s\nEXTRA_USAGE_ENABLED=%s\n' \
-            "$sub_type" "$tier" "$five_util" "$five_reset" "$seven_util" "$seven_reset" "$extra" > "$out_file"
+        printf 'SUBSCRIPTION_TYPE=%s\nRATE_LIMIT_TIER=%s\nFIVE_HOUR_UTIL=%s\nFIVE_HOUR_RESET=%s\nSEVEN_DAY_UTIL=%s\nSEVEN_DAY_RESET=%s\nEXTRA_USAGE_ENABLED=%s\nLIMITS=%s\n' \
+            "$sub_type" "$tier" "$five_util" "$five_reset" "$seven_util" "$seven_reset" "$extra" "$limits" > "$out_file"
         return
     fi
 
@@ -278,8 +285,23 @@ fetch_profile_usage() {
     seven_reset=$(echo "$api_resp" | jq -r '.seven_day.resets_at // ""')
     extra=$(echo "$api_resp" | jq -r '.extra_usage.is_enabled // false')
 
-    printf 'SUBSCRIPTION_TYPE=%s\nRATE_LIMIT_TIER=%s\nFIVE_HOUR_UTIL=%s\nFIVE_HOUR_RESET=%s\nSEVEN_DAY_UTIL=%s\nSEVEN_DAY_RESET=%s\nEXTRA_USAGE_ENABLED=%s\n' \
-        "$sub_type" "$tier" "$five_util" "$five_reset" "$seven_util" "$seven_reset" "$extra" > "$out_file"
+    # Flatten limits[] into one row per window. `model` is the display name of a
+    # model-scoped window ("Fable") and empty for the plan-wide ones; the UI uses
+    # it to title the row. Emitted on a single line so the KEY=value contract
+    # this function writes stays line-based.
+    limits=$(echo "$api_resp" | jq -c '[ (.limits // [])[] | {
+        kind: (.kind // ""),
+        group: (.group // ""),
+        model: (.scope.model.display_name // ""),
+        percent: (.percent // 0),
+        resets_at: (.resets_at // ""),
+        severity: (.severity // "normal"),
+        is_active: (.is_active // false)
+    } ]' 2>/dev/null || echo '[]')
+    echo "$limits" | jq -e 'type == "array"' >/dev/null 2>&1 || limits='[]'
+
+    printf 'SUBSCRIPTION_TYPE=%s\nRATE_LIMIT_TIER=%s\nFIVE_HOUR_UTIL=%s\nFIVE_HOUR_RESET=%s\nSEVEN_DAY_UTIL=%s\nSEVEN_DAY_RESET=%s\nEXTRA_USAGE_ENABLED=%s\nLIMITS=%s\n' \
+        "$sub_type" "$tier" "$five_util" "$five_reset" "$seven_util" "$seven_reset" "$extra" "$limits" > "$out_file"
 }
 
 # --- Collect profile list: default + CCS instances ---
@@ -378,7 +400,7 @@ for idx in "${!TMPFILES[@]}"; do
 
     # Read per-profile usage/subscription
     p_sub="unknown"; p_tier="unknown"
-    p_5u=0; p_5r=""; p_7u=0; p_7r=""; p_extra="false"
+    p_5u=0; p_5r=""; p_7u=0; p_7r=""; p_extra="false"; p_limits="[]"
     if [ -f "$usage_tmpf" ]; then
         p_sub=$(grep "^SUBSCRIPTION_TYPE=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo "unknown")
         p_tier=$(grep "^RATE_LIMIT_TIER=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo "unknown")
@@ -387,6 +409,10 @@ for idx in "${!TMPFILES[@]}"; do
         p_7u=$(grep "^SEVEN_DAY_UTIL=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo 0)
         p_7r=$(grep "^SEVEN_DAY_RESET=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo "")
         p_extra=$(grep "^EXTRA_USAGE_ENABLED=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo "false")
+        p_limits=$(grep "^LIMITS=" "$usage_tmpf" 2>/dev/null | cut -d= -f2- || echo "[]")
+        # --argjson aborts the whole document on malformed input, so anything that
+        # does not parse as an array degrades to an empty one.
+        echo "$p_limits" | jq -e 'type == "array"' >/dev/null 2>&1 || p_limits="[]"
     fi
 
     # Default profile drives the top-level aggregate fields
@@ -398,6 +424,7 @@ for idx in "${!TMPFILES[@]}"; do
         SEVEN_DAY_UTIL="$p_7u"
         SEVEN_DAY_RESET="$p_7r"
         EXTRA_USAGE_ENABLED="$p_extra"
+        LIMITS_JSON="$p_limits"
     fi
 
     # Aggregate token totals
@@ -453,6 +480,7 @@ for idx in "${!TMPFILES[@]}"; do
             --arg tc "$p_tc" --arg wc "$p_wc" --arg mc "$p_mc" \
             --arg fu "$p_5u" --arg su "$p_7u" --arg fr "$p_5r" --arg sr "$p_7r" \
             --arg extra "$p_extra" --arg daily "$p_daily" --arg dcosts "$p_dc" --arg models "$p_models" \
+            --argjson limits "$p_limits" \
             '{
                 name: $name, subscription: $sub, tier: $tier,
                 week_tokens: ($wt|tonumber? // 0), month_tokens: ($mt|tonumber? // 0),
@@ -460,6 +488,7 @@ for idx in "${!TMPFILES[@]}"; do
                 today_cost: ($tc|tonumber? // 0), week_cost: ($wc|tonumber? // 0), month_cost: ($mc|tonumber? // 0),
                 five_hour_util: ($fu|tonumber? // 0), seven_day_util: ($su|tonumber? // 0),
                 five_hour_reset: $fr, seven_day_reset: $sr, extra_usage: ($extra == "true"),
+                limits: $limits,
                 daily: ($daily|split(",")|map(tonumber? // 0)),
                 daily_costs: ($dcosts|split(",")|map(tonumber? // 0)),
                 week_models: ([$models|split(",")[]|select(length>0)|split("=")|{(.[0]):(.[1]|tonumber? // 0)}]|add // {})
@@ -499,11 +528,13 @@ if [ "$OUTPUT_JSON" = true ]; then
         --arg tc "$TODAY_COST" --arg wc "$WEEK_COST" --arg mc "$MONTH_COST" \
         --arg rate "$USD_EUR_RATE" --arg profiles "$PROFILES" \
         --argjson profile_data "[${PROFILE_JSON}]" \
+        --argjson limits "$LIMITS_JSON" \
         '{
             subscription_type: $sub, rate_limit_tier: $tier,
             five_hour_util: ($fu|tonumber? // 0), five_hour_reset: $fr,
             seven_day_util: ($su|tonumber? // 0), seven_day_reset: $sr,
             extra_usage_enabled: ($extra == "true"),
+            limits: $limits,
             week_messages: ($wm|tonumber? // 0), week_sessions: ($ws|tonumber? // 0),
             week_tokens: ($wt|tonumber? // 0), month_tokens: ($mt|tonumber? // 0),
             week_models: ([$models|split(",")[]|select(length>0)|split("=")|{(.[0]):(.[1]|tonumber? // 0)}]|add // {}),
@@ -527,6 +558,7 @@ echo "FIVE_HOUR_RESET=${FIVE_HOUR_RESET}"
 echo "SEVEN_DAY_UTIL=${SEVEN_DAY_UTIL}"
 echo "SEVEN_DAY_RESET=${SEVEN_DAY_RESET}"
 echo "EXTRA_USAGE_ENABLED=${EXTRA_USAGE_ENABLED}"
+echo "LIMITS=${LIMITS_JSON}"
 echo "WEEK_MESSAGES=${WEEK_MESSAGES}"
 echo "WEEK_SESSIONS=${WEEK_SESSIONS}"
 echo "WEEK_TOKENS=${WEEK_TOKENS}"

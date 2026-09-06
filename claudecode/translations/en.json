@@ -3,8 +3,6 @@
   "used": "used",
   "resets_in": "Resets in",
   "resetting": "Resetting…",
-  "five_hour": "5h Rate Window",
-  "seven_day": "7-Day Usage",
   "token_consumption": "Token Consumption",
   "today": "Today",
   "week": "Week",
@@ -89,5 +87,13 @@
       "label": "Accent color",
       "description": "Color for values, bars, and today's activity."
     }
-  }
+  },
+  "window": {
+    "session": "Session (5h)",
+    "weekly": "Weekly (7d)",
+    "scoped": "{model} (7d)",
+    "other": "Rate window"
+  },
+  "plan": "Plan",
+  "rate_windows": "Rate Windows"
 }

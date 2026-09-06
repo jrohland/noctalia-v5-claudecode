@@ -133,6 +133,94 @@ function M.paceColor(status, calm)
   return calm
 end
 
+-- ── rate windows ───────────────────────────────────────────────────────────
+-- The API reports every window it enforces in `limits`: the 5-hour session, the
+-- plan-wide week, and — on plans that scope one — a week for a single model
+-- ("Fable"). Older payloads carry only the first two, as five_hour_* /
+-- seven_day_*, so those are synthesized when `limits` is absent and the two
+-- shapes reach a renderer identically.
+
+M.SEVERITY_RANK = { normal = 0, high = 1, critical = 2 }
+
+-- The vendor's own severity, mapped onto the pace vocabulary so one comparison
+-- covers both. Anthropic calling a window "high" outranks our own arithmetic
+-- saying it is merely over pace, and we never read calmer than the vendor does.
+local function severityStatus(severity)
+  if severity == "critical" then return "over_quota" end
+  if severity == "high" then return "over" end
+  return nil
+end
+
+local function windowLabel(row)
+  local model = row.model
+  if type(model) == "string" and model ~= "" then
+    return noctalia.tr("window.scoped", { model = model })
+  end
+  if row.kind == "session" then return noctalia.tr("window.session") end
+  if row.group == "weekly" then return noctalia.tr("window.weekly") end
+  return noctalia.tr("window.other")
+end
+
+-- → { { id, label, percent, resetIso, durationSecs, isActive, pace, status }, … }
+-- `status` is the worse of the pace reading and the vendor's severity, so it
+-- feeds M.paceColor and M.SEVERITY exactly like a plain pace status does.
+function M.windows(proj)
+  if type(proj) ~= "table" then return {} end
+
+  local rows = {}
+  if type(proj.limits) == "table" and #proj.limits > 0 then
+    for _, row in proj.limits do
+      if type(row) == "table" then
+        local secs = (row.kind == "session") and M.FIVE_HOUR_SECS or M.SEVEN_DAY_SECS
+        table.insert(rows, {
+          kind = row.kind, model = row.model, group = row.group,
+          percent = tonumber(row.percent) or 0,
+          resetIso = row.resets_at, durationSecs = secs,
+          severity = row.severity, isActive = row.is_active == true,
+        })
+      end
+    end
+  else
+    -- Legacy shape: the same two windows, without severity or an active flag.
+    rows = {
+      { kind = "session", group = "session", percent = tonumber(proj.five_hour_util) or 0,
+        resetIso = proj.five_hour_reset, durationSecs = M.FIVE_HOUR_SECS, isActive = false },
+      { kind = "weekly_all", group = "weekly", percent = tonumber(proj.seven_day_util) or 0,
+        resetIso = proj.seven_day_reset, durationSecs = M.SEVEN_DAY_SECS, isActive = false },
+    }
+  end
+
+  for i, row in rows do
+    row.id = `{row.kind or "window"}:{row.model or ""}:{i}`
+    row.label = windowLabel(row)
+    row.pace = M.pace(row.percent, row.resetIso, row.durationSecs)
+    local vendor = severityStatus(row.severity)
+    if vendor and (M.SEVERITY[vendor] or 0) > (M.SEVERITY[row.pace.status] or 0) then
+      row.status = vendor
+    else
+      row.status = row.pace.status
+    end
+  end
+  return rows
+end
+
+-- The wall-clock time a window resets at, in the shell's own time format:
+-- "19:30" inside a day, "Sat 15:00" further out, nil when the stamp is unusable.
+function M.formatResetClock(iso)
+  local epoch = M.resetEpoch(iso)
+  if not epoch then return nil end
+  -- noctalia.timeFormat() is "{:%H:%M}" or "{:%I:%M %p}"; take the strftime part
+  -- so a 12-hour shell reads 7:30 PM here too.
+  local fmt = "%H:%M"
+  local ok, shellFmt = pcall(noctalia.timeFormat)
+  if ok and type(shellFmt) == "string" then
+    local inner = shellFmt:match("{:(.-)}")
+    if inner and inner ~= "" then fmt = inner end
+  end
+  if epoch - os.time() >= 86400 then return os.date(`%a {fmt}`, epoch) end
+  return os.date(fmt, epoch)
+end
+
 -- ── profile projection ─────────────────────────────────────────────────────
 
 function M.findProfile(usage, name)
@@ -152,6 +240,7 @@ function M.projection(usage, selected)
       subscription = usage.subscription_type, tier = usage.rate_limit_tier,
       five_hour_util = usage.five_hour_util, seven_day_util = usage.seven_day_util,
       five_hour_reset = usage.five_hour_reset, seven_day_reset = usage.seven_day_reset,
+      limits = usage.limits,
       week_tokens = usage.week_tokens, month_tokens = usage.month_tokens,
       week_messages = usage.week_messages, week_sessions = usage.week_sessions,
       today_cost = usage.today_cost, week_cost = usage.week_cost, month_cost = usage.month_cost,
@@ -165,6 +254,7 @@ function M.projection(usage, selected)
     subscription = p.subscription, tier = p.tier,
     five_hour_util = p.five_hour_util, seven_day_util = p.seven_day_util,
     five_hour_reset = p.five_hour_reset, seven_day_reset = p.seven_day_reset,
+    limits = p.limits,
     week_tokens = p.week_tokens, month_tokens = p.month_tokens,
     week_messages = p.week_messages, week_sessions = p.week_sessions,
     today_cost = p.today_cost, week_cost = p.week_cost, month_cost = p.month_cost,
