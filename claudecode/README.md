@@ -6,8 +6,17 @@ refreshed in the background and mirrored into a bar pill, a click panel and a de
 tile. Ported from the original [Dank Material Shell plugin](https://github.com/titeya/dms-claudecode)
 by Nicolas Bellamy.
 
-It reads the usage that Anthropic already reports for your own account, so it covers the
-subscription rate windows (5-hour and 7-day) rather than only counting local tokens.
+It reads the usage Anthropic already reports for your own account, using the credentials
+Claude Code holds, so it covers the real subscription rate windows (5-hour and 7-day)
+rather than counting local tokens and guessing. There is no companion CLI to install and
+no second config file to keep in sync: enable the plugin and the numbers are there.
+
+Past the quota percentage it carries what a percentage alone leaves out — token counts
+for today, this week and this month, their estimated cost in USD or EUR at live model
+prices, a Monday-to-Sunday activity chart, a per-model breakdown for the week, all-time
+session and message totals, and a selector for switching between CCS profiles. The bar
+pill, the panel and the desktop tile all read one shared fetch, so putting up all three
+costs one process.
 
 ## Plugin
 
