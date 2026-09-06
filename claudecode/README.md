@@ -18,7 +18,8 @@ usage. Ported from the original [Dank Material Shell plugin](https://github.com/
   - CCS profile selector (tabs for up to 4 profiles, dropdown beyond; cycles through
     `~/.ccs/instances/*`)
   - Refresh / settings / close buttons
-- **Desktop widget** with the same content as an always-visible tile (profile cycle button).
+- **Desktop widget**: the same panel as an always-visible desktop tile (tabs for up to 4
+  profiles, cycle button beyond; no hover detail on the daily chart).
 - **Automatic subscription / rate-limit detection** via the Anthropic OAuth API.
 - **Dynamic model pricing** from [LiteLLM](https://github.com/BerriAI/litellm); USD/EUR
   via the ECB ([Frankfurter](https://www.frankfurter.app/)).
@@ -29,8 +30,8 @@ usage. Ported from the original [Dank Material Shell plugin](https://github.com/
 - Circular progress rings are rendered as linear bars (Noctalia's `ui.*` has no ring).
 - The panel has a fixed size declared in the manifest (380×640) and scrolls; the DMS popout
   auto-sizes.
-- The desktop widget's daily chart has no hover tooltips (desktop widgets take no hover);
-  the panel's does.
+- The desktop widget's daily chart has no hover detail and no dropdown (desktop widgets take
+  no hover and no `ui.select`); the panel has both.
 
 ## Requirements
 
